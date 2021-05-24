@@ -19,6 +19,38 @@ test('should run one time task only once', async t => {
 })
 
 test('should return correct scheduled flag', async t => {
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(50)
+  }, {}, {
+    nextRunTimeEvaluator: () => ({
+      startTime: 100,
+      isRetry: false
+    })
+  })
+  t.is(scheduler.scheduled, false)
+
+  scheduler.run()
+  t.is(scheduler.scheduled, true)
+  await delay(100)
+  t.is(scheduler.scheduled, true)
+
+  scheduler.cancelNextRun()
+  t.is(scheduler.scheduled, false)
+  await delay(100)
+  t.is(scheduler.scheduled, false)
+
+  scheduler.schedule(0)
+  t.is(scheduler.scheduled, true)
+  await delay(100)
+  t.is(scheduler.scheduled, true)
+
+  scheduler.cancelNextRun()
+  t.is(scheduler.scheduled, false)
+  await delay(100)
+  t.is(scheduler.scheduled, false)
+})
+
+test('can cancel next run when task is not running', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(() => {
     runCount++
@@ -28,21 +60,21 @@ test('should return correct scheduled flag', async t => {
       isRetry: false
     })
   })
-  t.is(scheduler.scheduled, false)
+  t.is(runCount, 0)
   scheduler.schedule(0)
-  t.is(scheduler.scheduled, true)
   t.is(runCount, 0)
   await delay(50)
   t.is(runCount, 1)
-  t.is(scheduler.scheduled, true)
+  await delay(100)
+  t.is(runCount, 2)
   scheduler.cancelNextRun()
-  t.is(scheduler.scheduled, false)
-  await delay(50)
-  t.is(runCount, 1)
-  t.is(scheduler.scheduled, false)
+  await delay(100)
+  t.is(runCount, 2)
+  await delay(100)
+  t.is(runCount, 2)
 })
 
-test('can cancel next run when task is not running', async t => {
+test('can cancel next run when task is running', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(100)
@@ -53,41 +85,13 @@ test('can cancel next run when task is not running', async t => {
       isRetry: false
     })
   })
-  t.is(scheduler.scheduled, false)
   scheduler.schedule(0)
-  t.is(scheduler.scheduled, true)
   t.is(runCount, 0)
   await delay(150)
   t.is(runCount, 1)
-  t.is(scheduler.scheduled, true)
   scheduler.cancelNextRun()
-  t.is(scheduler.scheduled, false)
   await delay(100)
   t.is(runCount, 2)
-  t.is(scheduler.scheduled, false)
-  await delay(100)
-  t.is(runCount, 2)
-  t.is(scheduler.scheduled, false)
-})
-
-test('can cancel next run when task is running', async t => {
-  let runCount = 0
-  const scheduler = new SingleInstanceTaskScheduler(() => {
-    runCount++
-  }, {}, {
-    nextRunTimeEvaluator: () => ({
-      startTime: 100,
-      isRetry: false
-    })
-  })
-  t.is(runCount, 0)
-  scheduler.schedule(0)
-  t.is(runCount, 0)
-  await delay(50)
-  t.is(runCount, 1)
-  await delay(100)
-  t.is(runCount, 2)
-  scheduler.cancelNextRun()
   await delay(100)
   t.is(runCount, 2)
 })
@@ -198,9 +202,9 @@ test('should return correct next run start time for fixed interval task', async 
       delay: 100
     }
   } as const
-  const x = buildEvaluator<undefined, undefined>(options)
+  const evaluator = buildEvaluator<undefined, undefined>(options)
   const now = new Date()
-  const xxxxx = x({
+  const nextRunRequest = evaluator({
     type: 'SUCCESS',
     returnValue: undefined
   }, {
@@ -211,7 +215,7 @@ test('should return correct next run start time for fixed interval task', async 
     startTime: now,
     endTime: now
   }, undefined)
-  const x1 = xxxxx?.startTime
-  if (typeof x1 !== 'number') { t.is(typeof x1, 'number'); return }
-  t.is(x1, now.getTime() + options.onSuccess.delay)
+  const nextRunStartTime = nextRunRequest?.startTime
+  if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
+  t.is(nextRunStartTime, now.getTime() + options.onSuccess.delay)
 })
