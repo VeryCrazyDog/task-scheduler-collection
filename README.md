@@ -1,2 +1,2 @@
-# async-scheduler
-A task scheduler with flexible next execution time.
+# task-scheduler
+A single instance task scheduler with flexible next run time.

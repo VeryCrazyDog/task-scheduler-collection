@@ -1,7 +1,7 @@
 {
-	"name": "async-scheduler",
+	"name": "task-scheduler",
 	"version": "1.0.0",
-	"description": "A task scheduler with flexible next execution time",
+	"description": "A single instance task scheduler with flexible next run time",
 	"engines": {
 		"node": ">= 12.x"
 	},
