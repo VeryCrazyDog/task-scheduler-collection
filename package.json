@@ -1,0 +1,30 @@
+{
+	"name": "async-scheduler",
+	"version": "1.0.0",
+	"description": "A task scheduler with flexible next execution time",
+	"engines": {
+		"node": ">= 12.x"
+	},
+	"main": "dist/index.js",
+	"dependencies": {},
+	"devDependencies": {
+		"@typescript-eslint/eslint-plugin": "4.x",
+		"ava": "3.x",
+		"eslint": "7.x",
+		"eslint-config-standard-with-typescript": "20.x",
+		"eslint-plugin-import": "2.x",
+		"eslint-plugin-node": "11.x",
+		"eslint-plugin-promise": "4.x",
+		"ts-node": "9.x",
+		"typescript": "4.2.x"
+	},
+	"scripts": {
+		"lint": "eslint *.cjs . || cd .",
+		"fix": "eslint --fix *.cjs . || cd .",
+		"build": "tsc",
+		"test": "ava",
+		"prepack": "npm run build"
+	},
+	"license": "UNLICENSED",
+	"private": true
+}

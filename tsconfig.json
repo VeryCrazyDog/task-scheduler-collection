@@ -1,0 +1,19 @@
+{
+	// TSConfig reference: https://www.typescriptlang.org/tsconfig
+	// Configured based on https://stackoverflow.com/a/59787575/1131246
+	"compilerOptions": {
+		// Strict checks
+		"strict": true,
+		// Project options
+		"declaration": true,
+		"lib": [ "ES2019", "ES2020.BigInt", "ES2020.String", "ES2020.Symbol.WellKnown" ],
+		"module": "CommonJS",
+		"outDir": "dist",
+		"rootDir": "src",
+		"target": "ES2019",
+		// Module resolution
+		"esModuleInterop": true,
+		// Advanced
+		"forceConsistentCasingInFileNames": true
+	}
+}
