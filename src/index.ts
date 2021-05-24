@@ -2,18 +2,22 @@ import { strict as assert } from 'assert'
 
 export type Task<C, T> = (context: C) => T | Promise<T>
 
-export type TaskResult<T> = {
+export type ExecutionResult<T> = {
   type: 'SUCCESS'
   returnValue: T
 } | {
   type: 'ERROR'
   caughtValue: any
 }
-export interface TaskMetadata {
+export interface ExecutionMetadata {
   startTime: Date
   endTime: Date
 }
-export type NextRunTimeEvaluator<C, T> = (result: TaskResult<T>, meta: TaskMetadata, context: C) => number | Date | null
+export type NextRunTimeEvaluator<C, T> = (
+  result: ExecutionResult<T>,
+  meta: ExecutionMetadata,
+  context: C
+) => number | Date | null
 
 export interface SingleInstanceTaskSchedulerOptions<C, T> {
   /**
@@ -30,7 +34,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   readonly #context: C
   readonly #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T>
   #nextRunTimer: NodeJS.Timeout | null = null
-  #isRunning: boolean = false
+  #taskRunningPromise: Promise<T> | null = null
 
   constructor (
     task: Task<C, T>,
@@ -47,11 +51,24 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   }
 
   get running (): boolean {
-    return this.#isRunning
+    return this.#taskRunningPromise !== null
   }
 
-  schedule (): void {
-    // TODO
+  /**
+   * Schedule the task to run after a given milliseconds or absolute date time. If
+   * the task is already scheduled, it will be re-scheduled.
+   * @param startTime Start time of the next run. A delay in milliseconds, or an absolute
+   *   date time.
+   */
+  schedule (startTime: number | Date): void {
+    let delay: number
+    if (startTime instanceof Date) {
+      delay = startTime.getTime() - Date.now()
+    } else {
+      delay = startTime
+    }
+    this.cancelNextRun()
+    this.#nextRunTimer = setTimeout(this.run.bind(this), delay)
   }
 
   cancelNextRun (): void {
@@ -61,14 +78,27 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     }
   }
 
+  private scheduleWithResult (taskResult: ExecutionResult<T>, meta: ExecutionMetadata): void {
+    if (this.#nextRunTimeEvaluator == null) {
+      this.#nextRunTimer = null
+    } else {
+      const nextRunTime = this.#nextRunTimeEvaluator(taskResult, meta, this.#context)
+      if (nextRunTime == null) {
+        this.#nextRunTimer = null
+      } else {
+        assert.strictEqual(this.#nextRunTimer, null)
+        this.schedule(nextRunTime)
+      }
+    }
+  }
+
   run (): void {
-    if (this.#isRunning) { return }
-    this.#isRunning = true
+    if (this.#taskRunningPromise !== null) { return }
     // In case of implementation error, we will just let it throw so that we can notice such error
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    ;(async () => {
+    this.#taskRunningPromise = (async () => {
       try {
-        let taskResult: TaskResult<T>
+        let taskResult: ExecutionResult<T>
         const startTime = new Date()
         try {
           taskResult = {
@@ -82,31 +112,23 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
           }
         }
         const endTime = new Date()
-        if (this.#nextRunTimeEvaluator != null) {
-          const nextRunTime = this.#nextRunTimeEvaluator(taskResult, {
-            startTime,
-            endTime
-          }, this.#context)
-          if (nextRunTime != null) {
-            let delay: number
-            if (nextRunTime instanceof Date) {
-              delay = nextRunTime.getTime() - Date.now()
-            } else {
-              delay = nextRunTime
-            }
-            assert.strictEqual(this.#nextRunTimer, null)
-            // TODO
-            this.#nextRunTimer = setTimeout(() => {}, delay)
-          }
+        this.scheduleWithResult(taskResult, {
+          startTime,
+          endTime
+        })
+        if (taskResult.type === 'ERROR') {
+          throw taskResult.caughtValue
         }
+        return taskResult.returnValue
       } finally {
-        this.#isRunning = false
+        this.#taskRunningPromise = null
       }
     })()
   }
 
   async runWaitResult (): Promise<T> {
-    // TODO
-    return Promise.resolve() as any
+    this.run()
+    if (this.#taskRunningPromise === null) { assert.fail('taskRunningPromise should not be null') }
+    return await this.#taskRunningPromise
   }
 }

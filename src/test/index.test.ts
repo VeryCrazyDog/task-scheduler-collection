@@ -7,10 +7,10 @@ test('should run task immediately', async t => {
   const scheduler = new SingleInstanceTaskScheduler(() => {
     runCount++
   }, {})
-  scheduler.runWaitResult().catch(() => t.fail())
+  await scheduler.runWaitResult()
   t.is(runCount, 1)
-  scheduler.runWaitResult().catch(() => t.fail())
+  await scheduler.runWaitResult()
   t.is(runCount, 2)
-  scheduler.runWaitResult().catch(() => t.fail())
+  await scheduler.runWaitResult()
   t.is(runCount, 3)
 })
