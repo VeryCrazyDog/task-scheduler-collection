@@ -132,3 +132,50 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     return await this.#taskRunningPromise
   }
 }
+
+interface RetryOptions {
+  delay: number
+  duration?: number
+  attempt?: number
+}
+
+interface X1 {
+  type: 'RUN_START_TIME' | 'RUN_END_TIME'
+  delay: number
+}
+
+interface X2 {
+  type: 'ONE_TIME'
+}
+
+interface BuildXxxxxOptions {
+  onSuccess: X1 | X2
+  onError?: RetryOptions
+}
+
+export function buildNextRunTimeEvaluator<C, T>(options: BuildXxxxxOptions): NextRunTimeEvaluator<C, T> {
+  return (
+    result: ExecutionResult<T>,
+    meta: ExecutionMetadata
+  ): number | null => {
+    if (result.type === 'SUCCESS') {
+      if (options.onSuccess.type === 'ONE_TIME') {
+        return null
+      } else if (options.onSuccess.type === 'RUN_START_TIME') {
+        return meta.startTime.getTime() + options.onSuccess.delay
+      } else if (options.onSuccess.type === 'RUN_END_TIME') {
+        return meta.endTime.getTime() + options.onSuccess.delay
+      } else {
+        assert.fail()
+      }
+    } else if (result.type === 'ERROR') {
+      if (options.onError == undefined) {
+        return null
+      } else {
+        return meta.endTime.getTime() + options.onError.delay
+      }
+    } else {
+      assert.fail()
+    }
+  }
+}
