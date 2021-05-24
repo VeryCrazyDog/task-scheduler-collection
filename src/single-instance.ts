@@ -225,23 +225,26 @@ export function buildEvaluator<C, T> (
         request = null
       } else if (onSuccess.type === 'RUN_START_TIME') {
         request = {
-          startTime: meta.startTime.getTime() + onSuccess.delay,
+          startTime: (meta.startTime.getTime() + onSuccess.delay) - Date.now(),
           isRetry: false
         }
       } else if (onSuccess.type === 'RUN_END_TIME') {
         request = {
-          startTime: meta.endTime.getTime() + onSuccess.delay,
+          startTime: (meta.endTime.getTime() + onSuccess.delay) - Date.now(),
           isRetry: false
         }
       } else {
         assert.fail('Not implemented onSuccess.type')
       }
     } else if (result.type === 'ERROR') {
-      if (options.onError === undefined) {
+      if (
+        options.onError === undefined ||
+        (options.onError.attempt !== undefined && meta.attemptNumber >= options.onError.attempt)
+      ) {
         request = null
       } else {
         request = {
-          startTime: meta.endTime.getTime() + options.onError.delay,
+          startTime: (meta.endTime.getTime() + options.onError.delay) - Date.now(),
           isRetry: true
         }
       }

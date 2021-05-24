@@ -18,6 +18,52 @@ test('should run one time task only once', async t => {
   scheduler.cancelNextRun()
 })
 
+test('should produce correct delay when returning number in next run time evaluator', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    runCount++
+  }, {}, {
+    nextRunTimeEvaluator: () => ({
+      startTime: 100,
+      isRetry: false
+    })
+  })
+  t.is(runCount, 0)
+  scheduler.run()
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  await delay(100)
+  t.is(runCount, 3)
+  scheduler.cancelNextRun()
+})
+
+test('should produce correct delay when returning Date in next run time evaluator', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    runCount++
+  }, {}, {
+    nextRunTimeEvaluator: () => ({
+      startTime: new Date(Date.now() + 100),
+      isRetry: false
+    })
+  })
+  t.is(runCount, 0)
+  scheduler.run()
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  await delay(100)
+  t.is(runCount, 3)
+  scheduler.cancelNextRun()
+})
+
 test('should return correct scheduled flag', async t => {
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(50)
@@ -199,23 +245,122 @@ test('should return correct next run start time for fixed interval task', async 
   const options = {
     onSuccess: {
       type: 'RUN_START_TIME',
-      delay: 100
+      delay: 1000
     }
   } as const
   const evaluator = buildEvaluator<undefined, undefined>(options)
-  const now = new Date()
+  const startTime = new Date(Date.now() - 500)
+  const endTime = new Date()
   const nextRunRequest = evaluator({
     type: 'SUCCESS',
     returnValue: undefined
   }, {
-    firstAttemptStartTime: now,
-    firstAttemptEndTime: now,
+    firstAttemptStartTime: startTime,
+    firstAttemptEndTime: endTime,
     attemptNumber: 1,
     isRetry: false,
-    startTime: now,
-    endTime: now
+    startTime,
+    endTime
   }, undefined)
   const nextRunStartTime = nextRunRequest?.startTime
   if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
-  t.is(nextRunStartTime, now.getTime() + options.onSuccess.delay)
+  t.true(nextRunStartTime >= 450 && nextRunStartTime <= 550, nextRunStartTime.toString())
+})
+
+test('should return correct next run start time for on completion interval task', async t => {
+  const options = {
+    onSuccess: {
+      type: 'RUN_END_TIME',
+      delay: 1000
+    }
+  } as const
+  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const startTime = new Date(Date.now() - 500)
+  const endTime = new Date()
+  const nextRunRequest = evaluator({
+    type: 'SUCCESS',
+    returnValue: undefined
+  }, {
+    firstAttemptStartTime: startTime,
+    firstAttemptEndTime: endTime,
+    attemptNumber: 1,
+    isRetry: false,
+    startTime,
+    endTime
+  }, undefined)
+  const nextRunStartTime = nextRunRequest?.startTime
+  if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
+  t.true(nextRunStartTime >= 950 && nextRunStartTime <= 1050, nextRunStartTime.toString())
+})
+
+test('should return correct next run start time for on error retry', async t => {
+  const options = {
+    onSuccess: {
+      type: 'RUN_START_TIME',
+      delay: 2000
+    },
+    onError: {
+      delay: 1000
+    }
+  } as const
+  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const startTime = new Date(Date.now() - 500)
+  const endTime = new Date()
+  const nextRunRequest = evaluator({
+    type: 'ERROR',
+    caughtValue: new Error('Mock error')
+  }, {
+    firstAttemptStartTime: startTime,
+    firstAttemptEndTime: endTime,
+    attemptNumber: 1,
+    isRetry: false,
+    startTime,
+    endTime
+  }, undefined)
+  const nextRunStartTime = nextRunRequest?.startTime
+  if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
+  t.true(nextRunStartTime >= 950 && nextRunStartTime <= 1050, nextRunStartTime.toString())
+})
+
+test('should return null on reaching maximum attempt', async t => {
+  const options = {
+    onSuccess: {
+      type: 'RUN_START_TIME',
+      delay: 2000
+    },
+    onError: {
+      delay: 1000,
+      attempt: 3
+    }
+  } as const
+  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const startTime = new Date(Date.now() - 500)
+  const endTime = new Date()
+  const executionResult = {
+    type: 'ERROR',
+    caughtValue: new Error('Mock error')
+  } as const
+  const defaultExecutionMetadata = {
+    firstAttemptStartTime: startTime,
+    firstAttemptEndTime: endTime,
+    attemptNumber: 0,
+    isRetry: false,
+    startTime,
+    endTime
+  }
+  let nextRunRequest = evaluator(executionResult, {
+    ...defaultExecutionMetadata,
+    attemptNumber: 2
+  }, undefined)
+  t.not(nextRunRequest, null)
+  nextRunRequest = evaluator(executionResult, {
+    ...defaultExecutionMetadata,
+    attemptNumber: 3
+  }, undefined)
+  t.is(nextRunRequest, null)
+  nextRunRequest = evaluator(executionResult, {
+    ...defaultExecutionMetadata,
+    attemptNumber: 4
+  }, undefined)
+  t.is(nextRunRequest, null)
 })
