@@ -42,10 +42,10 @@ test('should return correct scheduled flag', async t => {
   t.is(scheduler.scheduled, false)
 })
 
-test.failing('can cancel next run when task is not running', async t => {
+test('can cancel next run when task is not running', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(async () => {
-    await delay(50)
+    await delay(100)
     runCount++
   }, {}, {
     nextRunTimeEvaluator: () => ({
@@ -57,13 +57,16 @@ test.failing('can cancel next run when task is not running', async t => {
   scheduler.schedule(0)
   t.is(scheduler.scheduled, true)
   t.is(runCount, 0)
-  await delay(100)
+  await delay(150)
   t.is(runCount, 1)
   t.is(scheduler.scheduled, true)
   scheduler.cancelNextRun()
   t.is(scheduler.scheduled, false)
   await delay(100)
-  t.is(runCount, 1)
+  t.is(runCount, 2)
+  t.is(scheduler.scheduled, false)
+  await delay(100)
+  t.is(runCount, 2)
   t.is(scheduler.scheduled, false)
 })
 
