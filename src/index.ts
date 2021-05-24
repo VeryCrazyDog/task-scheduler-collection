@@ -1,19 +1,19 @@
-interface Context<C> {
-  userContext: C
-}
+import { strict as assert } from 'assert'
 
-type TaskResult<T> = {
+export type Task<C, T> = (context: C) => T | Promise<T>
+
+export type TaskResult<T> = {
   type: 'SUCCESS'
   returnValue: T
 } | {
   type: 'ERROR'
   caughtValue: any
 }
-interface TaskMetadata {
+export interface TaskMetadata {
   startTime: Date
   endTime: Date
 }
-type NextRunTimeEvaluator<C, T> = (result: TaskResult<T>, meta: TaskMetadata, context: C) => number | Date | null
+export type NextRunTimeEvaluator<C, T> = (result: TaskResult<T>, meta: TaskMetadata, context: C) => number | Date | null
 
 export interface SingleInstanceTaskSchedulerOptions<C, T> {
   /**
@@ -26,33 +26,83 @@ export interface SingleInstanceTaskSchedulerOptions<C, T> {
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 export class SingleInstanceTaskScheduler<C = {}, T = void> {
-  #context: Context<C>
+  readonly #task: Task<C, T>
+  readonly #context: C
+  readonly #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T>
+  #nextRunTimer: NodeJS.Timeout | null = null
+  #isRunning: boolean = false
 
   constructor (
-    task: (context: C) => T | Promise<T>,
+    task: Task<C, T>,
     initialContext: C,
     options?: SingleInstanceTaskSchedulerOptions<C, T>
   ) {
-    this.#context = {
-      userContext: initialContext
-    }
+    this.#task = task
+    this.#context = initialContext
+    this.#nextRunTimeEvaluator = options?.nextRunTimeEvaluator ?? null
   }
 
   get scheduled (): boolean {
-    // TODO
-    return false
+    return (this.#nextRunTimer !== null)
+  }
+
+  get running (): boolean {
+    return this.#isRunning
   }
 
   schedule (): void {
     // TODO
   }
 
-  cancelSchedule (): void {
-    // TODO
+  cancelNextRun (): void {
+    if (this.#nextRunTimer !== null) {
+      clearTimeout(this.#nextRunTimer)
+      this.#nextRunTimer = null
+    }
   }
 
   run (): void {
-    // TODO
+    if (this.#isRunning) { return }
+    this.#isRunning = true
+    // In case of implementation error, we will just let it throw so that we can notice such error
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    ;(async () => {
+      try {
+        let taskResult: TaskResult<T>
+        const startTime = new Date()
+        try {
+          taskResult = {
+            type: 'SUCCESS',
+            returnValue: await this.#task(this.#context)
+          }
+        } catch (error) {
+          taskResult = {
+            type: 'ERROR',
+            caughtValue: error
+          }
+        }
+        const endTime = new Date()
+        if (this.#nextRunTimeEvaluator != null) {
+          const nextRunTime = this.#nextRunTimeEvaluator(taskResult, {
+            startTime,
+            endTime
+          }, this.#context)
+          if (nextRunTime != null) {
+            let delay: number
+            if (nextRunTime instanceof Date) {
+              delay = nextRunTime.getTime() - Date.now()
+            } else {
+              delay = nextRunTime
+            }
+            assert.strictEqual(this.#nextRunTimer, null)
+            // TODO
+            this.#nextRunTimer = setTimeout(() => {}, delay)
+          }
+        }
+      } finally {
+        this.#isRunning = false
+      }
+    })()
   }
 
   async runWaitResult (): Promise<T> {
