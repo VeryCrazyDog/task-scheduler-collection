@@ -5,6 +5,10 @@ type Task<C, T> = (context: C) => T | Promise<T>
 interface NextRunMetadata {
   attemptNumber: number
   isRetry: boolean
+  firstAttempt: null | {
+    startTime: Date
+    endTime: Date
+  }
 }
 
 interface Context<C> {
@@ -20,9 +24,17 @@ type ExecutionResult<T> = {
   caughtValue: any
 }
 interface ExecutionMetadata {
+  firstAttemptStartTime: Date
+  firstAttemptEndTime: Date
   attemptNumber: number
   isRetry: boolean
+  /**
+   * Start time of this attempt
+   */
   startTime: Date
+  /**
+   * End time of this attempt
+   */
   endTime: Date
 }
 interface NextRunRequest {
@@ -61,7 +73,8 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     this.#context = {
       nextRunMetadata: {
         attemptNumber: 1,
-        isRetry: false
+        isRetry: false,
+        firstAttempt: null
       },
       userContext: initialContext
     }
@@ -105,9 +118,12 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     if (this.#nextRunTimeEvaluator == null) {
       this.#nextRunTimer = null
     } else {
+      const meta = this.#context.nextRunMetadata
       const nextRunTime = this.#nextRunTimeEvaluator(taskResult, {
-        attemptNumber: this.#context.nextRunMetadata.attemptNumber,
-        isRetry: this.#context.nextRunMetadata.isRetry,
+        firstAttemptStartTime: meta.firstAttempt?.startTime ?? startTime,
+        firstAttemptEndTime: meta.firstAttempt?.endTime ?? endTime,
+        attemptNumber: meta.attemptNumber,
+        isRetry: meta.isRetry,
         startTime,
         endTime
       }, this.#context.userContext)
@@ -122,9 +138,16 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     const meta = this.#context.nextRunMetadata
     meta.isRetry = isNextRunRetry
     if (meta.isRetry) {
+      if (meta.attemptNumber === 1) {
+        meta.firstAttempt = {
+          startTime,
+          endTime
+        }
+      }
       meta.attemptNumber++
     } else {
       meta.attemptNumber = 1
+      meta.firstAttempt = null
     }
   }
 
@@ -186,7 +209,99 @@ interface BuildXxxxxOptions {
   onError?: RetryOptions
 }
 
+interface BuildOneTimeTaskNextRunTimeEvaluatorOptions {
+  errorDelay: number
+  maxAttempt: number
+}
+
+export function buildOneTimeTaskNextRunTimeEvaluator<C, T> (
+  options: BuildOneTimeTaskNextRunTimeEvaluatorOptions
+): NextRunTimeEvaluator<C, T> {
+  return (result, meta) => {
+    let request: NextRunRequest | null
+    if (result.type === 'SUCCESS') {
+      request = null
+    } else if (result.type === 'ERROR') {
+      if (meta.attemptNumber >= options.maxAttempt) {
+        request =  null 
+      } else {
+        request = {
+          startTime:  meta.endTime.getTime() + options.errorDelay,
+          isRetry: true
+        }
+      }
+    } else {
+      assert.fail()
+    }
+    return request
+  }
+}
+
 export function buildNextRunTimeEvaluator<C, T> (options: BuildXxxxxOptions): NextRunTimeEvaluator<C, T> {
+  let evaluator: NextRunTimeEvaluator<C, T>
+  if (options.onSuccess.type === 'ONE_TIME') {
+    evaluator = (result, meta) => {
+      let request: NextRunRequest | null
+      if (result.type === 'SUCCESS') {
+        request = null
+      } else if (result.type === 'ERROR') {
+        if (options.onError == undefined) {
+          request = null
+        } else {
+          request = {
+            startTime:  meta.endTime.getTime() + options.onError.delay,
+            isRetry: true
+          }
+        }
+      } else {
+        assert.fail()
+      }
+      return request
+    }
+  } else if (options.onSuccess.type === 'RUN_START_TIME') {
+    evaluator = (result, meta) => {
+      let request: NextRunRequest | null
+      if (result.type === 'SUCCESS') {
+        request = meta.startTime.getTime() + options.onSuccess.delay
+      } else if (result.type === 'ERROR') {
+        if (options.onError == undefined) {
+          request = null
+        } else {
+          request = {
+            startTime:  meta.endTime.getTime() + options.onError.delay,
+            isRetry: true
+          }
+        }
+      } else {
+        assert.fail()
+      }
+      return request
+    }
+  }
+  return evaluator
+
+
+  if (result.type === 'SUCCESS') {
+    if (options.onSuccess.type === 'ONE_TIME') {
+      return null
+    } else if (options.onSuccess.type === 'RUN_START_TIME') {
+      return meta.startTime.getTime() + options.onSuccess.delay
+    } else if (options.onSuccess.type === 'RUN_END_TIME') {
+      return meta.endTime.getTime() + options.onSuccess.delay
+    } else {
+      assert.fail()
+    }
+  } else if (result.type === 'ERROR') {
+    if (options.onError == undefined) {
+      return null
+    } else {
+      return meta.endTime.getTime() + options.onError.delay
+    }
+  } else {
+    assert.fail()
+  }
+
+
   return (
     result: ExecutionResult<T>,
     meta: ExecutionMetadata
