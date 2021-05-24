@@ -2,23 +2,6 @@ interface Context<C> {
   userContext: C
 }
 
-interface RetryOptions {
-  delay: number
-  duration?: number
-  attempt?: number
-}
-
-interface X1 {
-  type: 'RUN_START_TIME' | 'RUN_END_TIME'
-  onSuccessDelay: number
-  onErrorRetry?: RetryOptions
-}
-
-interface X2 {
-  type: 'ONE_TIME'
-  onErrorRetry?: RetryOptions
-}
-
 type TaskResult<T> = {
   type: 'SUCCESS'
   returnValue: T
@@ -27,38 +10,47 @@ type TaskResult<T> = {
   caughtValue: any
 }
 interface TaskMetadata {
-  isRetry: boolean
   startTime: Date
   endTime: Date
 }
-type NextRunTimeEvaluator<T, C> = (result: TaskResult<T>, meta: TaskMetadata, context: C) => boolean
+type NextRunTimeEvaluator<C, T> = (result: TaskResult<T>, meta: TaskMetadata, context: C) => number | Date | null
 
-export interface SingleInstanceTaskSchedulerOptions<T, C> {
-  nextRunTime?: X1 | X2 | NextRunTimeEvaluator<T, C>
+export interface SingleInstanceTaskSchedulerOptions<C, T> {
+  /**
+   * A function that return the next run time of the task. This function will be called
+   * after a task ended to evaluate the next run time. The returned value can be a delay
+   * in milliseconds, or an absolute date time, or `null` which indicate no next run.
+   */
+  nextRunTimeEvaluator?: NextRunTimeEvaluator<C, T>
 }
 
-export class SingleInstanceTaskScheduler<T, C> {
+export class SingleInstanceTaskScheduler<C = {}, T = void> {
   #context: Context<C>
 
   constructor(
     task: (context: C) => T | Promise<T>,
     initialContext: C,
-    options?: SingleInstanceTaskSchedulerOptions<T, C>
+    options?: SingleInstanceTaskSchedulerOptions<C, T>
   ) {
     this.#context = {
       userContext: initialContext
     }
   }
 
+  get scheduled(): boolean {
+    // TODO
+    return false
+  }
+
   schedule() {
-    
+    // TODO
   }
 
   cancelSchedule () {
-
+    // TODO
   }
 
   run() {
-
+    // TODO
   }
 }
