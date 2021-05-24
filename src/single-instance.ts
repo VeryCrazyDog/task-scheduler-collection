@@ -61,7 +61,10 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   readonly #task: Task<C, T>
   readonly #context: Context<C>
   readonly #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T>
-  #nextRunTimer: NodeJS.Timeout | null = null
+  /**
+   * `true` to indicate the timer will be set after task end
+   */
+  #nextRunTimer: NodeJS.Timeout | true | null = null
   #taskRunningPromise: Promise<T> | null = null
 
   constructor (
@@ -108,7 +111,9 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
 
   cancelNextRun (): void {
     if (this.#nextRunTimer !== null) {
-      clearTimeout(this.#nextRunTimer)
+      if (this.#nextRunTimer !== true) {
+        clearTimeout(this.#nextRunTimer)
+      }
       this.#nextRunTimer = null
     }
   }
@@ -130,7 +135,9 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
       if (nextRunTime == null) {
         this.#nextRunTimer = null
       } else {
-        this.schedule(nextRunTime.startTime)
+        if (this.#nextRunTimer !== null) {
+          this.schedule(nextRunTime.startTime)
+        }
         isNextRunRetry = nextRunTime.isRetry
       }
     }
@@ -151,6 +158,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   }
 
   run (): void {
+    this.#nextRunTimer = true
     if (this.#taskRunningPromise !== null) { return }
     // In case of implementation error, we will just let it throw so that we can notice such error
     // eslint-disable-next-line @typescript-eslint/no-floating-promises

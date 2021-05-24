@@ -134,7 +134,7 @@ test('should pass correct arguments to nextRunTimeEvaluator', async t => {
   })
   t.like(evaluatorArgs[1], {
     firstAttemptStartTime: firstAttemptStartTime,
-    firstAttemptEndTime: firstAttemptStartTime,
+    firstAttemptEndTime: firstAttemptEndTime,
     attemptNumber: 2,
     isRetry: true
   })
