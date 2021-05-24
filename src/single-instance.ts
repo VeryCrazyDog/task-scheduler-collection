@@ -2,6 +2,16 @@ import { strict as assert } from 'assert'
 
 type Task<C, T> = (context: C) => T | Promise<T>
 
+interface NextRunMetadata {
+  attemptNumber: number
+  isRetry: boolean
+}
+
+interface Context<C> {
+  nextRunMetadata: NextRunMetadata
+  userContext: C
+}
+
 type ExecutionResult<T> = {
   type: 'SUCCESS'
   returnValue: T
@@ -10,14 +20,20 @@ type ExecutionResult<T> = {
   caughtValue: any
 }
 interface ExecutionMetadata {
+  attemptNumber: number
+  isRetry: boolean
   startTime: Date
   endTime: Date
+}
+interface NextRunRequest {
+  startTime: number | Date
+  isRetry: boolean
 }
 type NextRunTimeEvaluator<C, T> = (
   result: ExecutionResult<T>,
   meta: ExecutionMetadata,
   context: C
-) => number | Date | null
+) => NextRunRequest | null
 
 export interface SingleInstanceTaskSchedulerOptions<C, T> {
   /**
@@ -31,7 +47,7 @@ export interface SingleInstanceTaskSchedulerOptions<C, T> {
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 export class SingleInstanceTaskScheduler<C = {}, T = void> {
   readonly #task: Task<C, T>
-  readonly #context: C
+  readonly #context: Context<C>
   readonly #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T>
   #nextRunTimer: NodeJS.Timeout | null = null
   #taskRunningPromise: Promise<T> | null = null
@@ -42,7 +58,13 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     options?: SingleInstanceTaskSchedulerOptions<C, T>
   ) {
     this.#task = task
-    this.#context = initialContext
+    this.#context = {
+      nextRunMetadata: {
+        attemptNumber: 1,
+        isRetry: false
+      },
+      userContext: initialContext
+    }
     this.#nextRunTimeEvaluator = options?.nextRunTimeEvaluator ?? null
   }
 
@@ -78,17 +100,31 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     }
   }
 
-  private scheduleWithResult (taskResult: ExecutionResult<T>, meta: ExecutionMetadata): void {
+  private scheduleWithResult (taskResult: ExecutionResult<T>, startTime: Date, endTime: Date): void {
+    let isNextRunRetry = false
     if (this.#nextRunTimeEvaluator == null) {
       this.#nextRunTimer = null
     } else {
-      const nextRunTime = this.#nextRunTimeEvaluator(taskResult, meta, this.#context)
+      const nextRunTime = this.#nextRunTimeEvaluator(taskResult, {
+        attemptNumber: this.#context.nextRunMetadata.attemptNumber,
+        isRetry: this.#context.nextRunMetadata.isRetry,
+        startTime,
+        endTime
+      }, this.#context.userContext)
       if (nextRunTime == null) {
         this.#nextRunTimer = null
       } else {
         assert.strictEqual(this.#nextRunTimer, null)
-        this.schedule(nextRunTime)
+        this.schedule(nextRunTime.startTime)
+        isNextRunRetry = nextRunTime.isRetry
       }
+    }
+    const meta = this.#context.nextRunMetadata
+    meta.isRetry = isNextRunRetry
+    if (meta.isRetry) {
+      meta.attemptNumber++
+    } else {
+      meta.attemptNumber = 1
     }
   }
 
@@ -103,7 +139,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
         try {
           taskResult = {
             type: 'SUCCESS',
-            returnValue: await this.#task(this.#context)
+            returnValue: await this.#task(this.#context.userContext)
           }
         } catch (error) {
           taskResult = {
@@ -112,10 +148,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
           }
         }
         const endTime = new Date()
-        this.scheduleWithResult(taskResult, {
-          startTime,
-          endTime
-        })
+        this.scheduleWithResult(taskResult, startTime, endTime)
         if (taskResult.type === 'ERROR') {
           throw taskResult.caughtValue
         }
@@ -153,7 +186,7 @@ interface BuildXxxxxOptions {
   onError?: RetryOptions
 }
 
-export function buildNextRunTimeEvaluator<C, T>(options: BuildXxxxxOptions): NextRunTimeEvaluator<C, T> {
+export function buildNextRunTimeEvaluator<C, T> (options: BuildXxxxxOptions): NextRunTimeEvaluator<C, T> {
   return (
     result: ExecutionResult<T>,
     meta: ExecutionMetadata
