@@ -130,7 +130,6 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
       if (nextRunTime == null) {
         this.#nextRunTimer = null
       } else {
-        assert.strictEqual(this.#nextRunTimer, null)
         this.schedule(nextRunTime.startTime)
         isNextRunRetry = nextRunTime.isRetry
       }
@@ -189,7 +188,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   }
 }
 
-// -------------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 interface OneTimeEvaluateOptions {
   type: 'ONE_TIME'
