@@ -1,7 +1,7 @@
 {
-	"name": "task-scheduler",
+	"name": "task-schedulers",
 	"version": "1.0.0",
-	"description": "A single instance task scheduler with flexible next run time",
+	"description": "A collection of different kinds of task schedulers",
 	"engines": {
 		"node": ">= 12.x"
 	},

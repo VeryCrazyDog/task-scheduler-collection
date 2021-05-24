@@ -1,6 +1,6 @@
 import test from 'ava'
 
-import { SingleInstanceTaskScheduler } from '../index'
+import { SingleInstanceTaskScheduler } from '../single-instance'
 
 test('should run task immediately', async t => {
   let runCount = 0
