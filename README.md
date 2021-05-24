@@ -1,5 +1,5 @@
-# task-schedulers
-A collection of different task schedulers.
+# task-scheduler-collection
+A collection of different types of task scheduler.
 
 
 ## Available schedulers

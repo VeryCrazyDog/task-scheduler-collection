@@ -1,7 +1,7 @@
 {
-	"name": "task-schedulers",
-	"version": "1.0.0",
-	"description": "A collection of different kinds of task schedulers",
+	"name": "task-scheduler-collection",
+	"version": "0.1.0",
+	"description": "A collection of different types of task scheduler",
 	"engines": {
 		"node": ">= 12.x"
 	},
@@ -27,6 +27,18 @@
 		"test": "ava",
 		"prepack": "npm run build"
 	},
-	"license": "UNLICENSED",
-	"private": true
+	"license": "MIT",
+	"author": "VCD <VeryCrazyDog@gmail.com>",
+	"homepage": "https://github.com/VeryCrazyDog/task-scheduler-collection#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/VeryCrazyDog/task-scheduler-collection.git"
+	},
+	"bugs": {
+		"url": "https://github.com/VeryCrazyDog/task-scheduler-collection/issues"
+	},
+	"keywords": [
+		"scheduler",
+		"task"
+	]
 }
