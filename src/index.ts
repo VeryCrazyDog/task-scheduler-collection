@@ -24,10 +24,11 @@ export interface SingleInstanceTaskSchedulerOptions<C, T> {
   nextRunTimeEvaluator?: NextRunTimeEvaluator<C, T>
 }
 
+// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 export class SingleInstanceTaskScheduler<C = {}, T = void> {
   #context: Context<C>
 
-  constructor(
+  constructor (
     task: (context: C) => T | Promise<T>,
     initialContext: C,
     options?: SingleInstanceTaskSchedulerOptions<C, T>
@@ -37,20 +38,25 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     }
   }
 
-  get scheduled(): boolean {
+  get scheduled (): boolean {
     // TODO
     return false
   }
 
-  schedule() {
+  schedule (): void {
     // TODO
   }
 
-  cancelSchedule () {
+  cancelSchedule (): void {
     // TODO
   }
 
-  run() {
+  run (): void {
     // TODO
+  }
+
+  async runWaitResult (): Promise<T> {
+    // TODO
+    return Promise.resolve() as any
   }
 }

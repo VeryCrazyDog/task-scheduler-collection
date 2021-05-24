@@ -1,16 +1,16 @@
-import anyTest, { TestInterface } from 'ava'
+import test from 'ava'
 
-import { add } from '../index'
+import { SingleInstanceTaskScheduler } from '../index'
 
-interface TestContext {
-  // Added for the purpose of demonstration
-  previousResult: number
-}
-
-const test = anyTest as TestInterface<TestContext>
-
-test('should produce correct add result', t => {
-  const addResult = add(1, 2)
-  t.context.previousResult = addResult
-  t.deepEqual(addResult, 3)
+test('should run task immediately', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(() => {
+    runCount++
+  }, {})
+  scheduler.runWaitResult().catch(() => t.fail())
+  t.is(runCount, 1)
+  scheduler.runWaitResult().catch(() => t.fail())
+  t.is(runCount, 2)
+  scheduler.runWaitResult().catch(() => t.fail())
+  t.is(runCount, 3)
 })
