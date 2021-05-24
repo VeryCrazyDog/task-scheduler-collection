@@ -189,141 +189,58 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   }
 }
 
-interface RetryOptions {
-  delay: number
-  duration?: number
-  attempt?: number
-}
+// -------------------------------------------------------------------------------------------------
 
-interface X1 {
+interface OneTimeEvaluateOptions {
+  type: 'ONE_TIME'
+}
+interface IntervalEvaluateOptions {
   type: 'RUN_START_TIME' | 'RUN_END_TIME'
   delay: number
 }
-
-interface X2 {
-  type: 'ONE_TIME'
+interface OnErrorEvaluateOptions {
+  delay: number
+  attempt?: number
+}
+interface BuildEvaluatorOptions {
+  onSuccess: OneTimeEvaluateOptions | IntervalEvaluateOptions
+  onError?: OnErrorEvaluateOptions
 }
 
-interface BuildXxxxxOptions {
-  onSuccess: X1 | X2
-  onError?: RetryOptions
-}
-
-interface BuildOneTimeTaskNextRunTimeEvaluatorOptions {
-  errorDelay: number
-  maxAttempt: number
-}
-
-export function buildOneTimeTaskNextRunTimeEvaluator<C, T> (
-  options: BuildOneTimeTaskNextRunTimeEvaluatorOptions
+export function buildEvaluator<C, T> (
+  options: BuildEvaluatorOptions
 ): NextRunTimeEvaluator<C, T> {
-  return (result, meta) => {
+  return (result, meta): NextRunRequest | null => {
     let request: NextRunRequest | null
     if (result.type === 'SUCCESS') {
-      request = null
+      const onSuccess = options.onSuccess
+      if (onSuccess.type === 'ONE_TIME') {
+        request = null
+      } else if (onSuccess.type === 'RUN_START_TIME') {
+        request = {
+          startTime: meta.startTime.getTime() + onSuccess.delay,
+          isRetry: false
+        }
+      } else if (onSuccess.type === 'RUN_END_TIME') {
+        request = {
+          startTime: meta.endTime.getTime() + onSuccess.delay,
+          isRetry: false
+        }
+      } else {
+        assert.fail('Not implemented onSuccess.type')
+      }
     } else if (result.type === 'ERROR') {
-      if (meta.attemptNumber >= options.maxAttempt) {
-        request =  null 
+      if (options.onError === undefined) {
+        request = null
       } else {
         request = {
-          startTime:  meta.endTime.getTime() + options.errorDelay,
+          startTime: meta.endTime.getTime() + options.onError.delay,
           isRetry: true
         }
       }
     } else {
-      assert.fail()
+      assert.fail('Not implemented onError.type')
     }
     return request
-  }
-}
-
-export function buildNextRunTimeEvaluator<C, T> (options: BuildXxxxxOptions): NextRunTimeEvaluator<C, T> {
-  let evaluator: NextRunTimeEvaluator<C, T>
-  if (options.onSuccess.type === 'ONE_TIME') {
-    evaluator = (result, meta) => {
-      let request: NextRunRequest | null
-      if (result.type === 'SUCCESS') {
-        request = null
-      } else if (result.type === 'ERROR') {
-        if (options.onError == undefined) {
-          request = null
-        } else {
-          request = {
-            startTime:  meta.endTime.getTime() + options.onError.delay,
-            isRetry: true
-          }
-        }
-      } else {
-        assert.fail()
-      }
-      return request
-    }
-  } else if (options.onSuccess.type === 'RUN_START_TIME') {
-    evaluator = (result, meta) => {
-      let request: NextRunRequest | null
-      if (result.type === 'SUCCESS') {
-        request = meta.startTime.getTime() + options.onSuccess.delay
-      } else if (result.type === 'ERROR') {
-        if (options.onError == undefined) {
-          request = null
-        } else {
-          request = {
-            startTime:  meta.endTime.getTime() + options.onError.delay,
-            isRetry: true
-          }
-        }
-      } else {
-        assert.fail()
-      }
-      return request
-    }
-  }
-  return evaluator
-
-
-  if (result.type === 'SUCCESS') {
-    if (options.onSuccess.type === 'ONE_TIME') {
-      return null
-    } else if (options.onSuccess.type === 'RUN_START_TIME') {
-      return meta.startTime.getTime() + options.onSuccess.delay
-    } else if (options.onSuccess.type === 'RUN_END_TIME') {
-      return meta.endTime.getTime() + options.onSuccess.delay
-    } else {
-      assert.fail()
-    }
-  } else if (result.type === 'ERROR') {
-    if (options.onError == undefined) {
-      return null
-    } else {
-      return meta.endTime.getTime() + options.onError.delay
-    }
-  } else {
-    assert.fail()
-  }
-
-
-  return (
-    result: ExecutionResult<T>,
-    meta: ExecutionMetadata
-  ): number | null => {
-    if (result.type === 'SUCCESS') {
-      if (options.onSuccess.type === 'ONE_TIME') {
-        return null
-      } else if (options.onSuccess.type === 'RUN_START_TIME') {
-        return meta.startTime.getTime() + options.onSuccess.delay
-      } else if (options.onSuccess.type === 'RUN_END_TIME') {
-        return meta.endTime.getTime() + options.onSuccess.delay
-      } else {
-        assert.fail()
-      }
-    } else if (result.type === 'ERROR') {
-      if (options.onError == undefined) {
-        return null
-      } else {
-        return meta.endTime.getTime() + options.onError.delay
-      }
-    } else {
-      assert.fail()
-    }
   }
 }
