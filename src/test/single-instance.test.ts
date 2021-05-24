@@ -37,9 +37,37 @@ test('should return correct scheduled flag', async t => {
   t.is(scheduler.scheduled, true)
   scheduler.cancelNextRun()
   t.is(scheduler.scheduled, false)
+  await delay(50)
+  t.is(runCount, 1)
+  t.is(scheduler.scheduled, false)
 })
 
-test('can cancel next run', async t => {
+test.failing('can cancel next run when task is not running', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(50)
+    runCount++
+  }, {}, {
+    nextRunTimeEvaluator: () => ({
+      startTime: 0,
+      isRetry: false
+    })
+  })
+  t.is(scheduler.scheduled, false)
+  scheduler.schedule(0)
+  t.is(scheduler.scheduled, true)
+  t.is(runCount, 0)
+  await delay(100)
+  t.is(runCount, 1)
+  t.is(scheduler.scheduled, true)
+  scheduler.cancelNextRun()
+  t.is(scheduler.scheduled, false)
+  await delay(100)
+  t.is(runCount, 1)
+  t.is(scheduler.scheduled, false)
+})
+
+test('can cancel next run when task is running', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(() => {
     runCount++
@@ -116,11 +144,15 @@ test('should pass correct arguments to nextRunTimeEvaluator', async t => {
   scheduler.cancelNextRun()
 })
 
-test('should not run parallel task', async t => {
+test('should not run multiple tasks concurrently', async t => {
   let runCount = 0
+  let isRunning = false
   const scheduler = new SingleInstanceTaskScheduler(async () => {
+    t.false(isRunning)
+    isRunning = true
     await delay(200)
     runCount++
+    isRunning = false
   }, {}, {
     nextRunTimeEvaluator: () => ({
       startTime: 0,
