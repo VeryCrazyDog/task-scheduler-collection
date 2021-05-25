@@ -171,7 +171,6 @@ test('should pass correct arguments to nextRunTimeEvaluator', async t => {
     firstAttemptStartTime: firstAttemptStartTime,
     firstAttemptEndTime: firstAttemptEndTime,
     attemptNumber: 1,
-    isRetry: false,
     startTime: firstAttemptStartTime,
     endTime: firstAttemptEndTime
   }, {
@@ -188,8 +187,7 @@ test('should pass correct arguments to nextRunTimeEvaluator', async t => {
   t.like(evaluatorArgs[1], {
     firstAttemptStartTime: firstAttemptStartTime,
     firstAttemptEndTime: firstAttemptEndTime,
-    attemptNumber: 2,
-    isRetry: true
+    attemptNumber: 2
   })
   t.deepEqual(evaluatorArgs[2], {
     runCount: 2
@@ -258,7 +256,6 @@ test('should return correct next run start time for fixed interval task', async 
     firstAttemptStartTime: startTime,
     firstAttemptEndTime: endTime,
     attemptNumber: 1,
-    isRetry: false,
     startTime,
     endTime
   }, undefined)
@@ -284,7 +281,6 @@ test('should return correct next run start time for on completion interval task'
     firstAttemptStartTime: startTime,
     firstAttemptEndTime: endTime,
     attemptNumber: 1,
-    isRetry: false,
     startTime,
     endTime
   }, undefined)
@@ -313,7 +309,6 @@ test('should return correct next run start time for on error retry', async t => 
     firstAttemptStartTime: startTime,
     firstAttemptEndTime: endTime,
     attemptNumber: 1,
-    isRetry: false,
     startTime,
     endTime
   }, undefined)

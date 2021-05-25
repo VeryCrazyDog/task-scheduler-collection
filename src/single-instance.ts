@@ -2,17 +2,15 @@ import { strict as assert } from 'assert'
 
 export type Task<C = {}, T = undefined> = (context: C) => T | Promise<T>
 
-export interface NextRunMetadata {
+interface NextRunData {
+  startTime: Date
+  timer: NodeJS.Timeout
   attemptNumber: number
-  firstAttempt: null | {
-    startTime: Date
-    endTime: Date
-  }
 }
 
-interface Context<C> {
-  nextRunMetadata: NextRunMetadata
-  userContext: C
+interface FirstAttemptMetadata {
+  startTime: Date
+  endTime: Date
 }
 
 export type ExecutionResult<T = undefined> = {
@@ -73,13 +71,15 @@ export interface Options<C = {}, T = undefined> {
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 export class SingleInstanceTaskScheduler<C = {}, T = void> {
   readonly #task: Task<C, T>
-  readonly #context: Context<C>
+  readonly #context: C
   readonly #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T>
   /**
-   * `true` to indicate the timer will be set after task end
+   * `null` indicates there is no next run, `undefined` indicate next run information
+   * is going to be set after the current running task end.
    */
-  #nextRunTimer: NodeJS.Timeout | true | null = null
+  #nextRunData: NextRunData | null | undefined = null
   #taskRunningPromise: Promise<T> | null = null
+  #firstAttempt: FirstAttemptMetadata | null = null
 
   constructor (
     task: Task<C, T>,
@@ -87,13 +87,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     options?: Options<C, T>
   ) {
     this.#task = task
-    this.#context = {
-      nextRunMetadata: {
-        attemptNumber: 1,
-        firstAttempt: null
-      },
-      userContext: initialContext
-    }
+    this.#context = initialContext
     const nextRunTime = options?.nextRunTime ?? null
     if (typeof nextRunTime === 'function' || nextRunTime === null) {
       this.#nextRunTimeEvaluator = nextRunTime
@@ -106,7 +100,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
    * Whether a next run is scheduled.
    */
   get scheduled (): boolean {
-    return (this.#nextRunTimer !== null)
+    return (this.#nextRunData !== null)
   }
 
   /**
@@ -119,66 +113,70 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   /**
    * Schedule the task to run after a given milliseconds or absolute date time. If
    * the task is already scheduled, it will be re-scheduled.
-   * @param startTime Start time of the next run. A delay in milliseconds, or an absolute
+   * @param startDelayOrTime Start time of the next run. A delay in milliseconds, or an absolute
    *   date time.
    */
-  schedule (startTime: number | Date): void {
+  schedule (startDelayOrTime: number | Date): void {
+    const prevAttemptNumber = this.#nextRunData?.attemptNumber
+    let startTime: Date
     let delay: number
-    if (startTime instanceof Date) {
-      delay = startTime.getTime() - Date.now()
+    if (startDelayOrTime instanceof Date) {
+      startTime = startDelayOrTime
+      delay = startDelayOrTime.getTime() - Date.now()
     } else {
-      delay = startTime
+      delay = startDelayOrTime
+      startTime = new Date(Date.now() + startDelayOrTime)
     }
     this.cancelNextRun()
-    this.#nextRunTimer = setTimeout(this.run.bind(this), delay)
+    this.#nextRunData = {
+      startTime,
+      timer: setTimeout(this.run.bind(this), delay),
+      attemptNumber: prevAttemptNumber ?? 1
+    }
   }
 
   /**
    * Cancel the next scheduled run. Running task will not be affected.
    */
   cancelNextRun (): void {
-    if (this.#nextRunTimer !== null) {
-      if (this.#nextRunTimer !== true) {
-        clearTimeout(this.#nextRunTimer)
-      }
-      this.#nextRunTimer = null
+    if (this.#nextRunData != null) {
+      clearTimeout(this.#nextRunData.timer)
     }
+    this.#nextRunData = null
   }
 
   private scheduleWithResult (taskResult: ExecutionResult<T>, startTime: Date, endTime: Date): void {
-    let isNextRunRetry = false
     if (this.#nextRunTimeEvaluator == null) {
-      this.#nextRunTimer = null
+      this.#nextRunData = null
     } else {
-      const meta = this.#context.nextRunMetadata
+      const thisRunAttemptNumber = this.#nextRunData?.attemptNumber ?? 1
       const nextRunTime = this.#nextRunTimeEvaluator(taskResult, {
-        firstAttemptStartTime: meta.firstAttempt?.startTime ?? startTime,
-        firstAttemptEndTime: meta.firstAttempt?.endTime ?? endTime,
-        attemptNumber: meta.attemptNumber,
+        firstAttemptStartTime: this.#firstAttempt?.startTime ?? startTime,
+        firstAttemptEndTime: this.#firstAttempt?.endTime ?? endTime,
+        attemptNumber: thisRunAttemptNumber,
         startTime,
         endTime
-      }, this.#context.userContext)
+      }, this.#context)
       if (nextRunTime == null) {
-        this.#nextRunTimer = null
+        this.#nextRunData = null
       } else {
-        if (this.#nextRunTimer !== null) {
+        if (this.#nextRunData !== null) {
           this.schedule(nextRunTime.startTime)
+          if (this.#nextRunData === undefined) { assert.fail('nextRunData should not be undefined') }
+          if (nextRunTime.isRetry) {
+            if (thisRunAttemptNumber === 1) {
+              this.#firstAttempt = {
+                startTime,
+                endTime
+              }
+            }
+            this.#nextRunData.attemptNumber = thisRunAttemptNumber + 1
+          } else {
+            this.#firstAttempt = null
+            this.#nextRunData.attemptNumber = 1
+          }
         }
-        isNextRunRetry = nextRunTime.isRetry
       }
-    }
-    const meta = this.#context.nextRunMetadata
-    if (isNextRunRetry) {
-      if (meta.attemptNumber === 1) {
-        meta.firstAttempt = {
-          startTime,
-          endTime
-        }
-      }
-      meta.attemptNumber++
-    } else {
-      meta.attemptNumber = 1
-      meta.firstAttempt = null
     }
   }
 
@@ -187,8 +185,8 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
    * run will be scheduled if configured.
    */
   run (): void {
-    if (this.#nextRunTimer === null) {
-      this.#nextRunTimer = true
+    if (this.#nextRunData === null) {
+      this.#nextRunData = undefined
     }
     if (this.#taskRunningPromise !== null) { return }
     // In case of implementation error, we will just let it throw so that we can notice such error
@@ -200,7 +198,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
         try {
           taskResult = {
             type: 'SUCCESS',
-            returnValue: await this.#task(this.#context.userContext)
+            returnValue: await this.#task(this.#context)
           }
         } catch (error) {
           taskResult = {
@@ -258,6 +256,7 @@ export interface NextRunTimeOptions {
 export function buildEvaluator<C, T> (
   options: NextRunTimeOptions
 ): NextRunTimeEvaluator<C, T> {
+  // TODO Change to return absolute Date object
   return (result, meta): NextRunRequest | null => {
     let request: NextRunRequest | null
     if (result.type === 'SUCCESS') {
