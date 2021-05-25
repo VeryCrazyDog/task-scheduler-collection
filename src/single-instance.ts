@@ -4,7 +4,6 @@ export type Task<C = {}, T = undefined> = (context: C) => T | Promise<T>
 
 export interface NextRunMetadata {
   attemptNumber: number
-  isRetry: boolean
   firstAttempt: null | {
     startTime: Date
     endTime: Date
@@ -36,7 +35,6 @@ export interface ExecutionMetadata {
    * The attempt number of this attempt. `1` for first attempt. `2` for second retry attempt.
    */
   attemptNumber: number
-  isRetry: boolean
   /**
    * Start time of this attempt.
    */
@@ -92,7 +90,6 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     this.#context = {
       nextRunMetadata: {
         attemptNumber: 1,
-        isRetry: false,
         firstAttempt: null
       },
       userContext: initialContext
@@ -158,7 +155,6 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
         firstAttemptStartTime: meta.firstAttempt?.startTime ?? startTime,
         firstAttemptEndTime: meta.firstAttempt?.endTime ?? endTime,
         attemptNumber: meta.attemptNumber,
-        isRetry: meta.isRetry,
         startTime,
         endTime
       }, this.#context.userContext)
@@ -172,8 +168,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
       }
     }
     const meta = this.#context.nextRunMetadata
-    meta.isRetry = isNextRunRetry
-    if (meta.isRetry) {
+    if (isNextRunRetry) {
       if (meta.attemptNumber === 1) {
         meta.firstAttempt = {
           startTime,
