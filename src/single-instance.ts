@@ -1,8 +1,8 @@
 import { strict as assert } from 'assert'
 
-type Task<C, T> = (context: C) => T | Promise<T>
+export type Task<C = {}, T = undefined> = (context: C) => T | Promise<T>
 
-interface NextRunMetadata {
+export interface NextRunMetadata {
   attemptNumber: number
   isRetry: boolean
   firstAttempt: null | {
@@ -16,14 +16,14 @@ interface Context<C> {
   userContext: C
 }
 
-type ExecutionResult<T> = {
+export type ExecutionResult<T = undefined> = {
   type: 'SUCCESS'
   returnValue: T
 } | {
   type: 'ERROR'
   caughtValue: any
 }
-interface ExecutionMetadata {
+export interface ExecutionMetadata {
   firstAttemptStartTime: Date
   firstAttemptEndTime: Date
   attemptNumber: number
@@ -37,17 +37,17 @@ interface ExecutionMetadata {
    */
   endTime: Date
 }
-interface NextRunRequest {
+export interface NextRunRequest {
   startTime: number | Date
   isRetry: boolean
 }
-type NextRunTimeEvaluator<C, T> = (
+export type NextRunTimeEvaluator<C = {}, T = undefined> = (
   result: ExecutionResult<T>,
   meta: ExecutionMetadata,
   context: C
 ) => NextRunRequest | null
 
-export interface SingleInstanceTaskSchedulerOptions<C, T> {
+export interface Options<C = {}, T = undefined> {
   /**
    * Options for next run time, or a function that return the next run time of the task.
    *
@@ -72,7 +72,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   constructor (
     task: Task<C, T>,
     initialContext: C,
-    options?: SingleInstanceTaskSchedulerOptions<C, T>
+    options?: Options<C, T>
   ) {
     this.#task = task
     this.#context = {
@@ -164,6 +164,9 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     }
   }
 
+  /**
+   * Run the scheduled task immediately.
+   */
   run (): void {
     this.#nextRunTimer = true
     if (this.#taskRunningPromise !== null) { return }
@@ -214,10 +217,16 @@ interface IntervalEvaluateOptions {
 }
 interface OnErrorEvaluateOptions {
   delay: number
+  /**
+   * Default is `Infinity`.
+   */
   attempt?: number
 }
 interface NextRunTimeOptions {
   onSuccess: OneTimeEvaluateOptions | IntervalEvaluateOptions
+  /**
+   * Default is `undefined`, which will not perform retry.
+   */
   onError?: OnErrorEvaluateOptions
 }
 

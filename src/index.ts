@@ -1,1 +1,1 @@
-export * from './single-instance'
+export * as SingleInstanceTaskScheduler from './single-instance'
