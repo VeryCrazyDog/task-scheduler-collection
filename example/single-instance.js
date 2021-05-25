@@ -1,4 +1,4 @@
-const { SingleInstanceTaskScheduler } = require('../dist')
+const { SingleInstanceTaskScheduler } = require('../dist/single-instance')
 
 let apiCallCount = 0
 const startTime = Date.now()
