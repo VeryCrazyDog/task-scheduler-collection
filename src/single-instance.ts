@@ -43,7 +43,10 @@ export interface ExecutionMetadata {
   endTime: Date
 }
 export interface NextRunRequest {
-  startTime: number | Date
+  startDelayOrTime: number | Date
+  /**
+   * Whether the next run is a retry attempt
+   */
   isRetry: boolean
 }
 export type NextRunTimeEvaluator<C = {}, T = undefined> = (
@@ -161,7 +164,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
         this.#nextRunData = null
       } else {
         if (this.#nextRunData !== null) {
-          this.schedule(nextRunTime.startTime)
+          this.schedule(nextRunTime.startDelayOrTime)
           if (this.#nextRunData === undefined) { assert.fail('nextRunData should not be undefined') }
           if (nextRunTime.isRetry) {
             if (thisRunAttemptNumber === 1) {
@@ -265,12 +268,12 @@ export function buildEvaluator<C, T> (
         request = null
       } else if (onSuccess.type === 'RUN_START_TIME') {
         request = {
-          startTime: (meta.startTime.getTime() + onSuccess.delay) - Date.now(),
+          startDelayOrTime: (meta.startTime.getTime() + onSuccess.delay) - Date.now(),
           isRetry: false
         }
       } else if (onSuccess.type === 'RUN_END_TIME') {
         request = {
-          startTime: (meta.endTime.getTime() + onSuccess.delay) - Date.now(),
+          startDelayOrTime: (meta.endTime.getTime() + onSuccess.delay) - Date.now(),
           isRetry: false
         }
       } else {
@@ -284,7 +287,7 @@ export function buildEvaluator<C, T> (
         request = null
       } else {
         request = {
-          startTime: (meta.endTime.getTime() + options.onError.delay) - Date.now(),
+          startDelayOrTime: (meta.endTime.getTime() + options.onError.delay) - Date.now(),
           isRetry: true
         }
       }

@@ -25,7 +25,7 @@ test('should produce correct delay when returning number in next run time evalua
     runCount++
   }, {}, {
     nextRunTime: () => ({
-      startTime: 100,
+      startDelayOrTime: 100,
       isRetry: false
     })
   })
@@ -48,7 +48,7 @@ test('should produce correct delay when returning Date in next run time evaluato
     runCount++
   }, {}, {
     nextRunTime: () => ({
-      startTime: new Date(Date.now() + 100),
+      startDelayOrTime: new Date(Date.now() + 100),
       isRetry: false
     })
   })
@@ -69,7 +69,7 @@ test('should return correct scheduled flag', async t => {
     await delay(50)
   }, {}, {
     nextRunTime: () => ({
-      startTime: 100,
+      startDelayOrTime: 100,
       isRetry: false
     })
   })
@@ -102,7 +102,7 @@ test('can cancel next run when task is not running', async t => {
     runCount++
   }, {}, {
     nextRunTime: () => ({
-      startTime: 100,
+      startDelayOrTime: 100,
       isRetry: false
     })
   })
@@ -127,7 +127,7 @@ test('can cancel next run when task is running', async t => {
     runCount++
   }, {}, {
     nextRunTime: () => ({
-      startTime: 0,
+      startDelayOrTime: 0,
       isRetry: false
     })
   })
@@ -154,7 +154,7 @@ test('should pass correct arguments to nextRunTimeEvaluator', async t => {
     nextRunTime: (...args) => {
       evaluatorArgs = args
       return {
-        startTime: 100,
+        startDelayOrTime: 100,
         isRetry: true
       }
     }
@@ -206,7 +206,7 @@ test('should not run multiple tasks concurrently', async t => {
     isRunning = false
   }, {}, {
     nextRunTime: () => ({
-      startTime: 0,
+      startDelayOrTime: 0,
       isRetry: false
     })
   })
@@ -259,7 +259,7 @@ test('should return correct next run start time for fixed interval task', async 
     startTime,
     endTime
   }, undefined)
-  const nextRunStartTime = nextRunRequest?.startTime
+  const nextRunStartTime = nextRunRequest?.startDelayOrTime
   if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
   t.true(nextRunStartTime >= 450 && nextRunStartTime <= 550, nextRunStartTime.toString())
 })
@@ -284,7 +284,7 @@ test('should return correct next run start time for on completion interval task'
     startTime,
     endTime
   }, undefined)
-  const nextRunStartTime = nextRunRequest?.startTime
+  const nextRunStartTime = nextRunRequest?.startDelayOrTime
   if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
   t.true(nextRunStartTime >= 950 && nextRunStartTime <= 1050, nextRunStartTime.toString())
 })
@@ -312,7 +312,7 @@ test('should return correct next run start time for on error retry', async t => 
     startTime,
     endTime
   }, undefined)
-  const nextRunStartTime = nextRunRequest?.startTime
+  const nextRunStartTime = nextRunRequest?.startDelayOrTime
   if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
   t.true(nextRunStartTime >= 950 && nextRunStartTime <= 1050, nextRunStartTime.toString())
 })
