@@ -106,6 +106,22 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     return (this.#nextRunData !== null)
   }
 
+  // Maybe we can consider to return `Date | null | Promise<Date | null>`?
+  /**
+   * The next run time of the task. `null` indicates that there will be no next run.
+   * `undefined` indicates that the next run time is going to be known after the current
+   * task end.
+   */
+  get nextRunTime (): Date | null | undefined {
+    let result: Date | null | undefined
+    if (this.#nextRunData == null) {
+      result = this.#nextRunData
+    } else {
+      result = this.#nextRunData.startTime
+    }
+    return result
+  }
+
   /**
    * Whether the task is currently running.
    */
