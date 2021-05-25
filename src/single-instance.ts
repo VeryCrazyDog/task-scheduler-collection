@@ -275,7 +275,6 @@ export interface NextRunTimeOptions {
 export function buildEvaluator<C, T> (
   options: NextRunTimeOptions
 ): NextRunTimeEvaluator<C, T> {
-  // TODO Change to return absolute Date object
   return (result, meta): NextRunRequest | null => {
     let request: NextRunRequest | null
     if (result.type === 'SUCCESS') {
@@ -284,12 +283,13 @@ export function buildEvaluator<C, T> (
         request = null
       } else if (onSuccess.type === 'RUN_START_TIME') {
         request = {
+          // TODO Change to return absolute Date object for higher accuracy
           startDelayOrTime: (meta.startTime.getTime() + onSuccess.delay) - Date.now(),
           isRetry: false
         }
       } else if (onSuccess.type === 'RUN_END_TIME') {
         request = {
-          startDelayOrTime: (meta.endTime.getTime() + onSuccess.delay) - Date.now(),
+          startDelayOrTime: onSuccess.delay,
           isRetry: false
         }
       } else {
@@ -303,7 +303,7 @@ export function buildEvaluator<C, T> (
         request = null
       } else {
         request = {
-          startDelayOrTime: (meta.endTime.getTime() + options.onError.delay) - Date.now(),
+          startDelayOrTime: options.onError.delay,
           isRetry: true
         }
       }
