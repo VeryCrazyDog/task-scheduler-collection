@@ -168,7 +168,9 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
    * Run the scheduled task immediately.
    */
   run (): void {
-    this.#nextRunTimer = true
+    if (this.#nextRunTimer === null) {
+      this.#nextRunTimer = true
+    }
     if (this.#taskRunningPromise !== null) { return }
     // In case of implementation error, we will just let it throw so that we can notice such error
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
