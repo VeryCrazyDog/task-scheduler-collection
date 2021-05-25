@@ -24,16 +24,25 @@ export type ExecutionResult<T = undefined> = {
   caughtValue: any
 }
 export interface ExecutionMetadata {
+  /**
+   * Start time of the first attempt.
+   */
   firstAttemptStartTime: Date
+  /**
+   * End time of the first attempt.
+   */
   firstAttemptEndTime: Date
+  /**
+   * The attempt number of this attempt. `1` for first attempt. `2` for second retry attempt.
+   */
   attemptNumber: number
   isRetry: boolean
   /**
-   * Start time of this attempt
+   * Start time of this attempt.
    */
   startTime: Date
   /**
-   * End time of this attempt
+   * End time of this attempt.
    */
   endTime: Date
 }
@@ -58,6 +67,11 @@ export interface Options<C = {}, T = undefined> {
   nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T>
 }
 
+/**
+ * A single instance task scheduler with flexible next run time.
+ *
+ * Stability: 1 - Experimental.
+ */
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
 export class SingleInstanceTaskScheduler<C = {}, T = void> {
   readonly #task: Task<C, T>
@@ -91,10 +105,16 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     }
   }
 
+  /**
+   * Whether a next run is scheduled.
+   */
   get scheduled (): boolean {
     return (this.#nextRunTimer !== null)
   }
 
+  /**
+   * Whether the task is currently running.
+   */
   get running (): boolean {
     return this.#taskRunningPromise !== null
   }
@@ -116,6 +136,9 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     this.#nextRunTimer = setTimeout(this.run.bind(this), delay)
   }
 
+  /**
+   * Cancel the next scheduled run. Running task will not be affected.
+   */
   cancelNextRun (): void {
     if (this.#nextRunTimer !== null) {
       if (this.#nextRunTimer !== true) {
@@ -165,7 +188,8 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   }
 
   /**
-   * Run the scheduled task immediately.
+   * Run the scheduled task immediately without waiting for the task returned value. Next
+   * run will be scheduled if configured.
    */
   run (): void {
     if (this.#nextRunTimer === null) {
@@ -201,7 +225,11 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
     })()
   }
 
-  async runWaitResult (): Promise<T> {
+  /**
+   * Run the scheduled task immediately and return a promise which will be fulfilled
+   * with the task returned value. Next run will be scheduled if configured.
+   */
+  async runReturnResult (): Promise<T> {
     this.run()
     if (this.#taskRunningPromise === null) { assert.fail('taskRunningPromise should not be null') }
     return await this.#taskRunningPromise
@@ -210,21 +238,21 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
 
 // -----------------------------------------------------------------------------
 
-interface OneTimeEvaluateOptions {
+export interface OneTimeEvaluateOptions {
   type: 'ONE_TIME'
 }
-interface IntervalEvaluateOptions {
+export interface IntervalEvaluateOptions {
   type: 'RUN_START_TIME' | 'RUN_END_TIME'
   delay: number
 }
-interface OnErrorEvaluateOptions {
+export interface OnErrorEvaluateOptions {
   delay: number
   /**
    * Default is `Infinity`.
    */
   attempt?: number
 }
-interface NextRunTimeOptions {
+export interface NextRunTimeOptions {
   onSuccess: OneTimeEvaluateOptions | IntervalEvaluateOptions
   /**
    * Default is `undefined`, which will not perform retry.
