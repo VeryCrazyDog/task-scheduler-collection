@@ -4,11 +4,12 @@ A collection of different types of task scheduler.
 [![Version on npm]][task-scheduler-collection]
 [![Build status]][Build workflow]
 
-
-## Available schedulers
 This library follows Node.js [stability index]. Examples are available in the `example`
 folder.
 
+
+
+## Available schedulers
 - SingleInstanceTaskScheduler: A single instance task scheduler with flexible next run time.
   Stability: 1 - Experimental.
 
