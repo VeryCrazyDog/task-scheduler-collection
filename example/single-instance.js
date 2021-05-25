@@ -1,4 +1,4 @@
-const { SingleInstanceTaskScheduler, buildEvaluator } = require('../dist')
+const { SingleInstanceTaskScheduler } = require('../dist')
 
 let apiCallCount = 0
 const startTime = Date.now()
@@ -15,12 +15,12 @@ async function fakeApiCall () {
 }
 
 const scheduler = new SingleInstanceTaskScheduler(fakeApiCall, {}, {
-  nextRunTimeEvaluator: buildEvaluator({
+  nextRunTime: {
     onSuccess: {
       type: 'RUN_START_TIME',
       delay: 1000
     }
-  })
+  }
 })
 scheduler.run()
 setTimeout(() => {

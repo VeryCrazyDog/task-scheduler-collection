@@ -49,11 +49,13 @@ type NextRunTimeEvaluator<C, T> = (
 
 export interface SingleInstanceTaskSchedulerOptions<C, T> {
   /**
-   * A function that return the next run time of the task. This function will be called
-   * after a task ended to evaluate the next run time. The returned value can be a delay
-   * in milliseconds, or an absolute date time, or `null` which indicate no next run.
+   * Options for next run time, or a function that return the next run time of the task.
+   *
+   * If a function is provided, it will be called after a task ended to evaluate the
+   * next run time. The returned value can be a delay in milliseconds, or an absolute
+   * date time `Date` object, or `null` which indicate no next run. Default is `null`.
    */
-  nextRunTimeEvaluator?: NextRunTimeEvaluator<C, T>
+  nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T>
 }
 
 // eslint-disable-next-line @typescript-eslint/no-invalid-void-type
@@ -81,7 +83,12 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
       },
       userContext: initialContext
     }
-    this.#nextRunTimeEvaluator = options?.nextRunTimeEvaluator ?? null
+    const nextRunTime = options?.nextRunTime ?? null
+    if (typeof nextRunTime === 'function' || nextRunTime === null) {
+      this.#nextRunTimeEvaluator = nextRunTime
+    } else {
+      this.#nextRunTimeEvaluator = buildEvaluator(nextRunTime)
+    }
   }
 
   get scheduled (): boolean {
@@ -209,13 +216,13 @@ interface OnErrorEvaluateOptions {
   delay: number
   attempt?: number
 }
-interface BuildEvaluatorOptions {
+interface NextRunTimeOptions {
   onSuccess: OneTimeEvaluateOptions | IntervalEvaluateOptions
   onError?: OnErrorEvaluateOptions
 }
 
 export function buildEvaluator<C, T> (
-  options: BuildEvaluatorOptions
+  options: NextRunTimeOptions
 ): NextRunTimeEvaluator<C, T> {
   return (result, meta): NextRunRequest | null => {
     let request: NextRunRequest | null

@@ -24,7 +24,7 @@ test('should produce correct delay when returning number in next run time evalua
     await delay(1)
     runCount++
   }, {}, {
-    nextRunTimeEvaluator: () => ({
+    nextRunTime: () => ({
       startTime: 100,
       isRetry: false
     })
@@ -47,7 +47,7 @@ test('should produce correct delay when returning Date in next run time evaluato
     await delay(1)
     runCount++
   }, {}, {
-    nextRunTimeEvaluator: () => ({
+    nextRunTime: () => ({
       startTime: new Date(Date.now() + 100),
       isRetry: false
     })
@@ -68,7 +68,7 @@ test('should return correct scheduled flag', async t => {
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(50)
   }, {}, {
-    nextRunTimeEvaluator: () => ({
+    nextRunTime: () => ({
       startTime: 100,
       isRetry: false
     })
@@ -101,7 +101,7 @@ test('can cancel next run when task is not running', async t => {
   const scheduler = new SingleInstanceTaskScheduler(() => {
     runCount++
   }, {}, {
-    nextRunTimeEvaluator: () => ({
+    nextRunTime: () => ({
       startTime: 100,
       isRetry: false
     })
@@ -126,7 +126,7 @@ test('can cancel next run when task is running', async t => {
     await delay(100)
     runCount++
   }, {}, {
-    nextRunTimeEvaluator: () => ({
+    nextRunTime: () => ({
       startTime: 0,
       isRetry: false
     })
@@ -151,7 +151,7 @@ test('should pass correct arguments to nextRunTimeEvaluator', async t => {
     ctx.runCount++
     return ctx.runCount
   }, context, {
-    nextRunTimeEvaluator: (...args) => {
+    nextRunTime: (...args) => {
       evaluatorArgs = args
       return {
         startTime: 100,
@@ -207,7 +207,7 @@ test('should not run multiple tasks concurrently', async t => {
     runCount++
     isRunning = false
   }, {}, {
-    nextRunTimeEvaluator: () => ({
+    nextRunTime: () => ({
       startTime: 0,
       isRetry: false
     })
