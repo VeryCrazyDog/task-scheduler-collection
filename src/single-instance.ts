@@ -153,31 +153,31 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
       this.#nextRunData = null
     } else {
       const thisRunAttemptNumber = this.#nextRunData?.attemptNumber ?? 1
-      const nextRunTime = this.#nextRunTimeEvaluator(taskResult, {
+      const nextRunRequest = this.#nextRunTimeEvaluator(taskResult, {
         firstAttemptStartTime: this.#firstAttempt?.startTime ?? startTime,
         firstAttemptEndTime: this.#firstAttempt?.endTime ?? endTime,
         attemptNumber: thisRunAttemptNumber,
         startTime,
         endTime
       }, this.#context)
-      if (nextRunTime == null) {
+      if (nextRunRequest === null) {
         this.#nextRunData = null
-      } else {
-        if (this.#nextRunData !== null) {
-          this.schedule(nextRunTime.startDelayOrTime)
-          if (this.#nextRunData === undefined) { assert.fail('nextRunData should not be undefined') }
-          if (nextRunTime.isRetry) {
-            if (thisRunAttemptNumber === 1) {
-              this.#firstAttempt = {
-                startTime,
-                endTime
-              }
+      } else if (this.#nextRunData !== null) {
+        // Next run was not cancelled, so we schedule the next run
+        this.schedule(nextRunRequest.startDelayOrTime)
+        if (this.#nextRunData === undefined) { assert.fail('nextRunData should not be undefined') }
+        // Update first attempt metadata and next run attempt number
+        if (nextRunRequest.isRetry) {
+          if (thisRunAttemptNumber === 1) {
+            this.#firstAttempt = {
+              startTime,
+              endTime
             }
-            this.#nextRunData.attemptNumber = thisRunAttemptNumber + 1
-          } else {
-            this.#firstAttempt = null
-            this.#nextRunData.attemptNumber = 1
           }
+          this.#nextRunData.attemptNumber = thisRunAttemptNumber + 1
+        } else {
+          this.#firstAttempt = null
+          this.#nextRunData.attemptNumber = 1
         }
       }
     }
