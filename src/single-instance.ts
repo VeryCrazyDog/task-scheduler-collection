@@ -82,6 +82,7 @@ export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
   #taskRunningPromise: Promise<T> | null = null
   #firstAttempt: FirstAttemptMetadata | null = null
 
+  // TODO When using the constructor, we can only see one function signiture. We shall add more function signitures.
   constructor (...values: undefined extends C ? CParamsWithoutContext<C, T> : CParamsWithContext<C, T>)
   constructor (
     task: Task<C, T>,
