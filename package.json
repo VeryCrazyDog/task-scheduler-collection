@@ -5,7 +5,6 @@
 	"engines": {
 		"node": ">= 12.x"
 	},
-	"main": "dist/index.js",
 	"dependencies": {},
 	"devDependencies": {
 		"@types/node": "^12.20.13",
@@ -26,8 +25,9 @@
 		"fix": "eslint --fix *.cjs . || cd .",
 		"prebuild": "shx rm -rf dist",
 		"build": "tsc",
+		"postbuild": "shx cp -r LICENSE package.json README.md dist/",
 		"test": "ava",
-		"prepack": "npm run build"
+		"release": "npm run build && shx rm -rf dist/test && cd dist && npm publish"
 	},
 	"license": "MIT",
 	"author": "VCD <VeryCrazyDog@gmail.com>",

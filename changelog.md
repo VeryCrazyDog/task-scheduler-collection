@@ -8,6 +8,10 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Added
 - Added method `SingleInstanceTaskScheduler.setNextRunTimeOptions()`.
 
+### Changed
+- Export is changed again. `require('task-scheduler-collection/dist/single-instance')`
+  should now be changed to `require('task-scheduler-collection/single-instance')`.
+
 ## [0.2.0] - 2021-05-25
 ### Added
 - Added `SingleInstanceTaskScheduler.nextRunTime` property.
@@ -15,8 +19,8 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Changed
 - In `SingleInstanceTaskScheduler` constructor options, rename `nextRunTimeEvaluator`
   to `nextRunTime` and accept the same options as `buildEvaluator`.
-- Export is changed. Instead of `require('task-scheduler-collection')`, use
-  `require('task-scheduler-collection/dist/single-instance')`.
+- Export is changed. Instead of `const { SingleInstanceTaskScheduler } = require('task-scheduler-collection')`,
+  use `const { SingleInstanceTaskScheduler } = require('task-scheduler-collection/dist/single-instance')`.
 - In `SingleInstanceTaskScheduler`, `NextRunRequest.startTime` is renamed to `NextRunRequest.startDelayOrTime`
   to avoid ambiguity.
 
