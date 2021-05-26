@@ -1,7 +1,7 @@
 import test from 'ava'
 import { delay } from 'native-promise-util'
 
-import { buildEvaluator, SingleInstanceTaskScheduler } from '../single-instance'
+import { SingleInstanceTaskScheduler, _buildEvaluator } from '../single-instance'
 
 test('should run one time task only once', async t => {
   let runCount = 0
@@ -264,7 +264,7 @@ test('should return correct next run start time for fixed interval task', async 
       delay: 1000
     }
   } as const
-  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const evaluator = _buildEvaluator<undefined, undefined>(options)
   const startTime = new Date(Date.now() - 500)
   const endTime = new Date()
   const nextRunRequest = evaluator({
@@ -289,7 +289,7 @@ test('should return correct next run start time for on completion interval task'
       delay: 1000
     }
   } as const
-  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const evaluator = _buildEvaluator<undefined, undefined>(options)
   const startTime = new Date(Date.now() - 500)
   const endTime = new Date()
   const nextRunRequest = evaluator({
@@ -317,7 +317,7 @@ test('should return correct next run start time for on error retry', async t => 
       delay: 1000
     }
   } as const
-  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const evaluator = _buildEvaluator<undefined, undefined>(options)
   const startTime = new Date(Date.now() - 500)
   const endTime = new Date()
   const nextRunRequest = evaluator({
@@ -346,7 +346,7 @@ test('should return null on reaching maximum attempt', async t => {
       attempt: 3
     }
   } as const
-  const evaluator = buildEvaluator<undefined, undefined>(options)
+  const evaluator = _buildEvaluator<undefined, undefined>(options)
   const startTime = new Date(Date.now() - 500)
   const endTime = new Date()
   const executionResult = {

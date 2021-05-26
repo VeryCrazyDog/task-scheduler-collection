@@ -140,7 +140,7 @@ export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
       this.#nextRunTimeEvaluator = value
     } else {
       // TODO Also store the value to allow users to access the value again later on
-      this.#nextRunTimeEvaluator = buildEvaluator(value)
+      this.#nextRunTimeEvaluator = _buildEvaluator(value)
     }
   }
 
@@ -288,9 +288,7 @@ export interface NextRunTimeOptions {
 }
 
 // TODO Remove from export in future
-export function buildEvaluator<C, T> (
-  options: NextRunTimeOptions
-): NextRunTimeEvaluator<C, T> {
+export function _buildEvaluator<C, T> (options: NextRunTimeOptions): NextRunTimeEvaluator<C, T> {
   return (result, meta): NextRunRequest | null => {
     let request: NextRunRequest | null
     if (result.type === 'SUCCESS') {
