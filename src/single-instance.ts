@@ -283,8 +283,7 @@ export function buildEvaluator<C, T> (
         request = null
       } else if (onSuccess.type === 'RUN_START_TIME') {
         request = {
-          // TODO Change to return absolute Date object for higher accuracy
-          startDelayOrTime: (meta.startTime.getTime() + onSuccess.delay) - Date.now(),
+          startDelayOrTime: new Date(meta.startTime.getTime() + onSuccess.delay),
           isRetry: false
         }
       } else if (onSuccess.type === 'RUN_END_TIME') {

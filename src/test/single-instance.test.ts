@@ -260,8 +260,8 @@ test('should return correct next run start time for fixed interval task', async 
     endTime
   }, undefined)
   const nextRunStartTime = nextRunRequest?.startDelayOrTime
-  if (typeof nextRunStartTime !== 'number') { t.is(typeof nextRunStartTime, 'number'); return }
-  t.true(nextRunStartTime >= 450 && nextRunStartTime <= 550, nextRunStartTime.toString())
+  if (!(nextRunStartTime instanceof Date)) { t.fail('nextRunStartTime is not an instance of Date'); return }
+  t.deepEqual(nextRunStartTime, new Date(startTime.getTime() + options.onSuccess.delay))
 })
 
 test('should return correct next run start time for on completion interval task', async t => {
