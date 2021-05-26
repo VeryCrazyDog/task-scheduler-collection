@@ -10,8 +10,8 @@ folder.
 
 
 ## Available schedulers
-- SingleInstanceTaskScheduler: A single instance task scheduler with flexible next run time.
-  Stability: 1 - Experimental.
+- SingleInstanceTaskScheduler: A task scheduler which at most have 1 instance running
+  the scheduled task. Stability: *1 - Experimental*.
 
 
 ## License
