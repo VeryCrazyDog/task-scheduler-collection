@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert'
 
-export type Task<C = {}, T = undefined> = (context: C) => T | Promise<T>
+export type Task<C = undefined, T = undefined> = (context: C) => T | Promise<T>
 
 interface NextRunData {
   startTime: Date
@@ -49,13 +49,13 @@ export interface NextRunRequest {
    */
   isRetry: boolean
 }
-export type NextRunTimeEvaluator<C = {}, T = undefined> = (
+export type NextRunTimeEvaluator<C = undefined, T = undefined> = (
   result: ExecutionResult<T>,
   meta: ExecutionMetadata,
   context: C
 ) => NextRunRequest | null
 
-export interface Options<C = {}, T = undefined> {
+export interface Options<C = undefined, T = undefined> {
   /**
    * Options for next run time, or a function that return the next run time of the task.
    * Default is `null`.
@@ -68,8 +68,7 @@ export interface Options<C = {}, T = undefined> {
  *
  * Stability: 1 - Experimental.
  */
-// eslint-disable-next-line @typescript-eslint/no-invalid-void-type
-export class SingleInstanceTaskScheduler<C = {}, T = void> {
+export class SingleInstanceTaskScheduler<C = undefined, T = undefined> {
   readonly #task: Task<C, T>
   readonly #context: C
   #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T> = null

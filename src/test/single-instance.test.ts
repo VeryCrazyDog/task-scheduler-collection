@@ -7,7 +7,7 @@ test('should run one time task only once', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(() => {
     runCount++
-  }, {})
+  }, undefined)
   t.is(runCount, 0)
   scheduler.schedule(0)
   t.is(runCount, 0)
@@ -23,7 +23,7 @@ test('should produce correct delay when returning number in next run time evalua
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(1)
     runCount++
-  }, {}, {
+  }, undefined, {
     nextRunTime: () => ({
       startDelayOrTime: 100,
       isRetry: false
@@ -46,7 +46,7 @@ test('should produce correct delay when returning Date in next run time evaluato
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(1)
     runCount++
-  }, {}, {
+  }, undefined, {
     nextRunTime: () => ({
       startDelayOrTime: new Date(Date.now() + 100),
       isRetry: false
@@ -67,7 +67,7 @@ test('should produce correct delay when returning Date in next run time evaluato
 test('should return correct scheduled flag', async t => {
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(50)
-  }, {}, {
+  }, undefined, {
     nextRunTime: () => ({
       startDelayOrTime: 100,
       isRetry: false
@@ -100,7 +100,7 @@ test('can cancel next run when task is not running', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(() => {
     runCount++
-  }, {}, {
+  }, undefined, {
     nextRunTime: () => ({
       startDelayOrTime: 100,
       isRetry: false
@@ -125,7 +125,7 @@ test('can cancel next run when task is running', async t => {
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(100)
     runCount++
-  }, {}, {
+  }, undefined, {
     nextRunTime: () => ({
       startDelayOrTime: 0,
       isRetry: false
@@ -204,7 +204,7 @@ test('should not run multiple tasks concurrently', async t => {
     await delay(200)
     runCount++
     isRunning = false
-  }, {}, {
+  }, undefined, {
     nextRunTime: () => ({
       startDelayOrTime: 0,
       isRetry: false
