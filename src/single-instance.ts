@@ -122,6 +122,7 @@ export class SingleInstanceTaskScheduler<C = undefined, T = undefined> {
 
   /**
    * Set options for next run time, or a function that return the next run time of the task.
+   * The change will be effective after next run.
    *
    * If a function is provided, it will be called after a task ended to evaluate the
    * next run time. The returned value can be a delay in milliseconds, or an absolute

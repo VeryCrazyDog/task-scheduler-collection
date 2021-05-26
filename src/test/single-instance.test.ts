@@ -113,6 +113,7 @@ test('can cancel next run when task is not running', async t => {
   t.is(runCount, 1)
   await delay(100)
   t.is(runCount, 2)
+  t.false(scheduler.running)
   scheduler.cancelNextRun()
   await delay(100)
   t.is(runCount, 2)
@@ -135,6 +136,7 @@ test('can cancel next run when task is running', async t => {
   t.is(runCount, 0)
   await delay(150)
   t.is(runCount, 1)
+  t.true(scheduler.running)
   scheduler.cancelNextRun()
   await delay(100)
   t.is(runCount, 2)
@@ -234,6 +236,38 @@ test('should not run multiple tasks concurrently', async t => {
   await delay(100)
   // 50ms + 200ms x 3 passed
   t.is(runCount, 3)
+  scheduler.cancelNextRun()
+})
+
+test('can change next run time options', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    runCount++
+  }, undefined, {
+    nextRunTime: () => ({
+      startDelayOrTime: 100,
+      isRetry: false
+    })
+  })
+  t.is(runCount, 0)
+  scheduler.run()
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  t.false(scheduler.running)
+  scheduler.setNextRunTimeOptions(() => ({
+    startDelayOrTime: 200,
+    isRetry: false
+  }))
+  await delay(100)
+  t.is(runCount, 3)
+  await delay(100)
+  t.is(runCount, 3)
+  await delay(100)
+  t.is(runCount, 4)
   scheduler.cancelNextRun()
 })
 
