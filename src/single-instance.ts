@@ -58,10 +58,7 @@ export type NextRunTimeEvaluator<C = {}, T = undefined> = (
 export interface Options<C = {}, T = undefined> {
   /**
    * Options for next run time, or a function that return the next run time of the task.
-   *
-   * If a function is provided, it will be called after a task ended to evaluate the
-   * next run time. The returned value can be a delay in milliseconds, or an absolute
-   * date time `Date` object, or `null` which indicate no next run. Default is `null`.
+   * Default is `null`.
    */
   nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T>
 }
@@ -75,7 +72,7 @@ export interface Options<C = {}, T = undefined> {
 export class SingleInstanceTaskScheduler<C = {}, T = void> {
   readonly #task: Task<C, T>
   readonly #context: C
-  readonly #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T>
+  #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T> = null
   /**
    * `null` indicates there is no next run, `undefined` indicate next run information
    * is going to be set after the current running task end.
@@ -91,12 +88,7 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
   ) {
     this.#task = task
     this.#context = initialContext
-    const nextRunTime = options?.nextRunTime ?? null
-    if (typeof nextRunTime === 'function' || nextRunTime === null) {
-      this.#nextRunTimeEvaluator = nextRunTime
-    } else {
-      this.#nextRunTimeEvaluator = buildEvaluator(nextRunTime)
-    }
+    this.setNextRunTimeOptions(options?.nextRunTime ?? null)
   }
 
   /**
@@ -127,6 +119,21 @@ export class SingleInstanceTaskScheduler<C = {}, T = void> {
    */
   get running (): boolean {
     return this.#taskRunningPromise !== null
+  }
+
+  /**
+   * Set options for next run time, or a function that return the next run time of the task.
+   *
+   * If a function is provided, it will be called after a task ended to evaluate the
+   * next run time. The returned value can be a delay in milliseconds, or an absolute
+   * date time `Date` object, or `null` which indicate no next run. Default is `null`.
+   */
+  setNextRunTimeOptions (value: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null): void {
+    if (typeof value === 'function' || value === null) {
+      this.#nextRunTimeEvaluator = value
+    } else {
+      this.#nextRunTimeEvaluator = buildEvaluator(value)
+    }
   }
 
   /**
