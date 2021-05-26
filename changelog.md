@@ -18,6 +18,7 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Removed
 - Marked function `buildEvaluator` in `single-instance` module as private by adding
   underscore prefix. Export will be removed in future.
+- Package on npm no longer include TypeScript source and `tsconfig.json`.
 
 ## [0.2.0] - 2021-05-25
 ### Added
@@ -40,6 +41,7 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 
 
-[Unreleased]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/releases/tag/0.1.0
