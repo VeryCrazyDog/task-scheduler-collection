@@ -14,7 +14,7 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - In `SingleInstanceTaskScheduler` constructor options, rename `nextRunTimeEvaluator`
   to `nextRunTime` and accept the same options as `buildEvaluator`.
 - Export is changed. Instead of `require('task-scheduler-collection')`, use
-  `require('task-scheduler-collection/single-instance')`.
+  `require('task-scheduler-collection/dist/single-instance')`.
 - In `SingleInstanceTaskScheduler`, `NextRunRequest.startTime` is renamed to `NextRunRequest.startDelayOrTime`
   to avoid ambiguity.
 
