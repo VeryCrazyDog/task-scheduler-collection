@@ -14,12 +14,10 @@ async function fakeApiCall () {
   console.log(`${Date.now() - startTime}ms: API returned result`)
 }
 
-const scheduler = new SingleInstanceTaskScheduler(fakeApiCall, undefined, {
-  nextRunTime: {
-    onSuccess: {
-      type: 'RUN_START_TIME',
-      delay: 1000
-    }
+const scheduler = new SingleInstanceTaskScheduler(fakeApiCall, {
+  onSuccess: {
+    type: 'RUN_START_TIME',
+    delay: 1000
   }
 })
 scheduler.run()

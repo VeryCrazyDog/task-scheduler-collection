@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert'
 
-export type Task<C = undefined, T = undefined> = (context: C) => T | Promise<T>
+export type Task<C = unknown, T = unknown> = (context: C) => T | Promise<T>
 
 interface NextRunData {
   startTime: Date
@@ -13,7 +13,7 @@ interface FirstAttemptMetadata {
   endTime: Date
 }
 
-export type ExecutionResult<T = undefined> = {
+export type ExecutionResult<T = unknown> = {
   type: 'SUCCESS'
   returnValue: T
 } | {
@@ -49,26 +49,28 @@ export interface NextRunRequest {
    */
   isRetry: boolean
 }
-export type NextRunTimeEvaluator<C = undefined, T = undefined> = (
+export type NextRunTimeEvaluator<C = unknown, T = unknown> = (
   result: ExecutionResult<T>,
   meta: ExecutionMetadata,
   context: C
 ) => NextRunRequest | null
 
-export interface Options<C = undefined, T = undefined> {
-  /**
-   * Options for next run time, or a function that return the next run time of the task.
-   * Default is `null`.
-   */
-  nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T>
-}
+type CParamsWithoutContext<C, T> = [
+  task: Task<C, T>,
+  nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null
+]
+type CParamsWithContext<C, T> = [
+  task: Task<C, T>,
+  nextRunTime: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null | undefined,
+  initialContext: C
+]
 
 /**
  * A single instance task scheduler with flexible next run time.
  *
  * Stability: 1 - Experimental.
  */
-export class SingleInstanceTaskScheduler<C = undefined, T = undefined> {
+export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
   readonly #task: Task<C, T>
   readonly #context: C
   #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T> = null
@@ -80,14 +82,19 @@ export class SingleInstanceTaskScheduler<C = undefined, T = undefined> {
   #taskRunningPromise: Promise<T> | null = null
   #firstAttempt: FirstAttemptMetadata | null = null
 
+  constructor (...values: undefined extends C ? CParamsWithoutContext<C, T> : CParamsWithContext<C, T>)
   constructor (
     task: Task<C, T>,
-    initialContext: C,
-    options?: Options<C, T>
+    /**
+     * Options for next run time, or a function that return the next run time of the task.
+     * Default is `null`.
+     */
+    nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null,
+    initialContext: C = undefined as any
   ) {
     this.#task = task
     this.#context = initialContext
-    this.setNextRunTimeOptions(options?.nextRunTime ?? null)
+    this.setNextRunTimeOptions(nextRunTime ?? null)
   }
 
   /**
@@ -280,6 +287,7 @@ export interface NextRunTimeOptions {
   onError?: OnErrorEvaluateOptions
 }
 
+// TODO Remove from export in future
 export function buildEvaluator<C, T> (
   options: NextRunTimeOptions
 ): NextRunTimeEvaluator<C, T> {

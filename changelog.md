@@ -11,6 +11,7 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Changed
 - Export is changed again. `require('task-scheduler-collection/dist/single-instance')`
   should now be changed to `require('task-scheduler-collection/single-instance')`.
+- Change constructor signiture of `SingleInstanceTaskScheduler` to make it easier to use.
 
 ## [0.2.0] - 2021-05-25
 ### Added
