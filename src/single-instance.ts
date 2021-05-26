@@ -132,6 +132,7 @@ export class SingleInstanceTaskScheduler<C = undefined, T = undefined> {
     if (typeof value === 'function' || value === null) {
       this.#nextRunTimeEvaluator = value
     } else {
+      // TODO Also store the value to allow users to access the value again later on
       this.#nextRunTimeEvaluator = buildEvaluator(value)
     }
   }
