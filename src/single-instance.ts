@@ -57,6 +57,7 @@ export type NextRunTimeEvaluator<C = unknown, T = unknown> = (
 
 type CParamsWithoutContext<C, T> = [
   task: Task<C, T>,
+  // TODO Split NextRunTimeEvaluator into OnSuccessNextRunTimeEvalutor and OnErrorNextRunTImeEvalutor
   nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null
 ]
 type CParamsWithContext<C, T> = [
