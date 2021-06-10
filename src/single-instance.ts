@@ -287,7 +287,7 @@ export interface OnErrorEvaluateOptions {
   attempt?: number
 }
 export interface NextRunTimeOptions {
-  onSuccess: OneTimeEvaluateOptions | FixedIntervalEvaluateOptions | RegularIntervalEvaluateOptions
+  onSuccess?: OneTimeEvaluateOptions | FixedIntervalEvaluateOptions | RegularIntervalEvaluateOptions
   /**
    * Default is `undefined`, which will not perform retry.
    */
@@ -299,7 +299,7 @@ export function _buildEvaluator<C, T> (options: NextRunTimeOptions): NextRunTime
   return (result, meta): NextRunRequest | null => {
     let request: NextRunRequest | null
     if (result.type === 'SUCCESS') {
-      const onSuccess = options.onSuccess
+      const onSuccess = options.onSuccess ?? { type: 'ONE_TIME' }
       if (onSuccess.type === 'ONE_TIME') {
         request = null
       } else if (onSuccess.type === 'RUN_START_TIME') {
