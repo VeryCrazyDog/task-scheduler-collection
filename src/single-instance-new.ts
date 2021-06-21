@@ -1,5 +1,6 @@
 import { strict as assert } from 'assert'
 
+// TypeScript typing
 export type Task<C = unknown, R = unknown> = (context: C) => R | Promise<R>
 
 export interface FixedIntervalRunOptions {
@@ -90,8 +91,9 @@ type CParamsWithCtx<C, R> = [
   initialContext: C
 ]
 
+// Public classes
 /**
- * A single instance task scheduler with flexible next run time.
+ * A task scheduler which have at most 1 running task at any time.
  *
  * Stability: 2 - Stable.
  */
