@@ -19,7 +19,7 @@ export interface OnErrorNextTriggerOptions {
    */
   attempt?: number
 }
-export interface SingleInstanceTaskSchedulerOptions {
+export interface SingleInstanceTaskSchedulerOptions<C> {
   /**
    * Defautl is `null`, which will not trigger any next run.
    */
@@ -28,6 +28,10 @@ export interface SingleInstanceTaskSchedulerOptions {
    * Default is `null`, which will not trigger any next run.
    */
   onError?: null | OnErrorNextTriggerOptions
+  /**
+   * Default is `undefined`.
+   */
+  initialContext?: C
 }
 
 /**
@@ -38,16 +42,19 @@ export interface SingleInstanceTaskSchedulerOptions {
 export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   readonly #task: Task<C, R>
   readonly #context: C
+  #options: Required<Omit<SingleInstanceTaskSchedulerOptions<C>, 'initialContext'>>
 
-  constructor (task: Task<C, R>);
-  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions);
-  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions, initialContext: C);
+  constructor (task: Task<C, R>)
+  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions<C>)
   constructor (
     task: Task<C, R>,
-    options?: SingleInstanceTaskSchedulerOptions,
-    initialContext: C = undefined as any
+    options?: SingleInstanceTaskSchedulerOptions<C>
   ) {
     this.#task = task
-    this.#context = initialContext
+    this.#options = {
+      onSuccess: options.onSuccess,
+      onError: options.onError
+    }
+    this.#context = options.initialContext
   }
 }
