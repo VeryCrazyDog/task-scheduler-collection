@@ -2,17 +2,17 @@ import { strict as assert } from 'assert'
 
 export type Task<C = unknown, T = unknown> = (context: C) => T | Promise<T>
 
-export interface FixedIntervalTriggerOptions {
+export interface FixedIntervalRunOptions {
   type: 'RUN_START_TIME'
   delay: number
   onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_INTERVAL'
 }
-export interface OnCompleteTriggerOptions {
+export interface OnCompleteRunOptions {
   type: 'RUN_END_TIME'
   delay: number
 }
-export type OnSuccessNextTriggerOptions = FixedIntervalTriggerOptions | OnCompleteTriggerOptions
-export interface OnErrorNextTriggerOptions {
+export type OnSuccessNextRunOptions = FixedIntervalRunOptions | OnCompleteRunOptions
+export interface OnErrorNextRunOptions {
   delay: number
   /**
    * Maximum number of attempt. Default is `Infinity`.
@@ -23,11 +23,11 @@ export interface SingleInstanceTaskSchedulerOptions {
   /**
    * Defautl is `null`, which will not trigger any next run.
    */
-  onSuccess?: null | OnSuccessNextTriggerOptions
+  onSuccess?: null | OnSuccessNextRunOptions
   /**
    * Default is `null`, which will not trigger any next run.
    */
-  onError?: null | OnErrorNextTriggerOptions
+  onError?: null | OnErrorNextRunOptions
 }
 
 type CParamsWithoutCtx<C, T> = [
