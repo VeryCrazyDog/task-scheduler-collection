@@ -19,7 +19,7 @@ export interface OnErrorNextTriggerOptions {
    */
   attempt?: number
 }
-export interface SingleInstanceTaskSchedulerOptions<C> {
+export interface SingleInstanceTaskSchedulerOptions {
   /**
    * Defautl is `null`, which will not trigger any next run.
    */
@@ -28,11 +28,17 @@ export interface SingleInstanceTaskSchedulerOptions<C> {
    * Default is `null`, which will not trigger any next run.
    */
   onError?: null | OnErrorNextTriggerOptions
-  /**
-   * Default is `undefined`.
-   */
-  initialContext?: C
 }
+
+type CParamsWithoutContext<C, T> = [
+  task: Task<C, T>,
+  options?: SingleInstanceTaskSchedulerOptions
+]
+type CParamsWithContext<C, T> = [
+  task: Task<C, T>,
+  options: SingleInstanceTaskSchedulerOptions | undefined,
+  initialContext: C
+]
 
 /**
  * A single instance task scheduler with flexible next run time.
@@ -42,19 +48,23 @@ export interface SingleInstanceTaskSchedulerOptions<C> {
 export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   readonly #task: Task<C, R>
   readonly #context: C
-  #options: Required<Omit<SingleInstanceTaskSchedulerOptions<C>, 'initialContext'>>
+  #options: Required<SingleInstanceTaskSchedulerOptions>
 
-  constructor (task: Task<C, R>)
-  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions<C>)
+  constructor (task: Task<C, R>, options?: SingleInstanceTaskSchedulerOptions)
+  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions | undefined, initialContext: C)
+  constructor (...values: undefined extends C ? CParamsWithoutContext<C, R> : CParamsWithContext<C, R>)
   constructor (
     task: Task<C, R>,
-    options?: SingleInstanceTaskSchedulerOptions<C>
+    options: SingleInstanceTaskSchedulerOptions = {},
+    initialContext: C = undefined as unknown as C
   ) {
     this.#task = task
     this.#options = {
-      onSuccess: options.onSuccess,
-      onError: options.onError
+      onSuccess: options.onSuccess ?? null,
+      onError: options.onError ?? null
     }
-    this.#context = options.initialContext
+    this.#context = initialContext
   }
 }
+
+const x = new SingleInstanceTaskScheduler(() => {}, undefined, '')
