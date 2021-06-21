@@ -30,11 +30,11 @@ export interface SingleInstanceTaskSchedulerOptions {
   onError?: null | OnErrorNextTriggerOptions
 }
 
-type CParamsWithoutContext<C, T> = [
+type CParamsWithoutCtx<C, T> = [
   task: Task<C, T>,
   options?: SingleInstanceTaskSchedulerOptions
 ]
-type CParamsWithContext<C, T> = [
+type CParamsWithCtx<C, T> = [
   task: Task<C, T>,
   options: SingleInstanceTaskSchedulerOptions | undefined,
   initialContext: C
@@ -47,24 +47,19 @@ type CParamsWithContext<C, T> = [
  */
 export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   readonly #task: Task<C, R>
+  readonly #options: Required<SingleInstanceTaskSchedulerOptions>
   readonly #context: C
-  #options: Required<SingleInstanceTaskSchedulerOptions>
 
   constructor (task: Task<C, R>, options?: SingleInstanceTaskSchedulerOptions)
   constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions | undefined, initialContext: C)
-  constructor (...values: undefined extends C ? CParamsWithoutContext<C, R> : CParamsWithContext<C, R>)
-  constructor (
-    task: Task<C, R>,
-    options: SingleInstanceTaskSchedulerOptions = {},
-    initialContext: C = undefined as unknown as C
-  ) {
-    this.#task = task
+  // Reference https://stackoverflow.com/a/52477831/1131246
+  constructor (...values: undefined extends C ? CParamsWithoutCtx<C, R> : CParamsWithCtx<C, R>) {
+    this.#task = values[0]
+    const options = values[1] ?? {}
     this.#options = {
       onSuccess: options.onSuccess ?? null,
       onError: options.onError ?? null
     }
-    this.#context = initialContext
+    this.#context = values[2] as C
   }
 }
-
-const x = new SingleInstanceTaskScheduler(() => {}, undefined, '')
