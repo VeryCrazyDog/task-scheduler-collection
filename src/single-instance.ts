@@ -270,14 +270,8 @@ export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
 export interface OneTimeEvaluateOptions {
   type: 'ONE_TIME'
 }
-export interface FixedIntervalEvaluateOptions {
-  type: 'RUN_START_TIME'
-  delay: number
-  // TODO Implement logic for this option
-  onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_INTERVAL'
-}
-export interface RegularIntervalEvaluateOptions {
-  type: 'RUN_END_TIME'
+export interface IntervalEvaluateOptions {
+  type: 'RUN_START_TIME' | 'RUN_END_TIME'
   delay: number
 }
 export interface OnErrorEvaluateOptions {
@@ -288,7 +282,7 @@ export interface OnErrorEvaluateOptions {
   attempt?: number
 }
 export interface NextRunTimeOptions {
-  onSuccess?: OneTimeEvaluateOptions | FixedIntervalEvaluateOptions | RegularIntervalEvaluateOptions
+  onSuccess?: OneTimeEvaluateOptions | IntervalEvaluateOptions
   /**
    * Default is `undefined`, which will not perform retry.
    */
