@@ -97,14 +97,6 @@ interface NextRunData {
   attemptNumber: number
 }
 
-type ExecutionResult<R = unknown> = {
-  success: true
-  returnValue: R
-} | {
-  success: false
-  caughtValue: any
-}
-
 // Public classes
 /**
  * A task scheduler which have at most 1 running task at any time.
@@ -205,36 +197,45 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
     this.#nextRunData = null
   }
 
-  #scheduleWithResult (taskResult: ExecutionResult<R>, startTime: Date, endTime: Date): void {
+  #scheduleWithSuccessResult (taskReturnValue: R, startTime: Date, endTime: Date): void {
     if (this.#nextRunData === null) { assert.fail('#nextRunData should not be null') }
     let nextRun: number | Date | null
-    if (taskResult.success) {
-      const options = this.#options.onSuccess
-      if (options === null) {
-        nextRun = null
-      } else if (typeof options === 'function') {
-        nextRun = options(taskResult.returnValue, { startTime, endTime }, this.#context)
+    const options = this.#options.onSuccess
+    if (options === null) {
+      nextRun = null
+    } else if (typeof options === 'function') {
+      nextRun = options(taskReturnValue, { startTime, endTime }, this.#context)
+    } else if (options.type === 'FIXED_INTERVAL') {
+      if (options.onPastTime !== 'NEXT_INTERVAL') {
+        nextRun = new Date(this.#nextRunData.startTime.getTime() + options.interval)
       } else {
-        if (options.type === 'FIXED_INTERVAL') {
-          if (options.onPastTime !== 'NEXT_INTERVAL') {
-            nextRun = new Date(this.#nextRunData.startTime.getTime() + options.interval)
-          } else {
-            // TODO
-          }
-        } else {
-          // TODO
-        }
+        // TODO
       }
+    } else if (options.type === 'RUN_END_TIME') {
+      nextRun = new Date(endTime.getTime() + options.delay)
     } else {
-      // TODO
+      assert.fail('Not implemented case')
     }
+    // TODO
+  }
+
+  #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
+    // TODO
   }
 
   #runTask (): void {
+    type ExecutionResult = {
+      success: true
+      returnValue: R
+    } | {
+      success: false
+      caughtValue: any
+    }
+
     if (this.#taskRunningPromise !== null) { return }
     this.#taskRunningPromise = (async () => {
       try {
-        let taskResult: ExecutionResult<R>
+        let taskResult: ExecutionResult
         const startTime = new Date()
         try {
           taskResult = {
@@ -248,9 +249,11 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
           }
         }
         const endTime = new Date()
-        this.#scheduleWithResult(taskResult, startTime, endTime)
         if (!taskResult.success) {
+          this.#scheduleWithErrorResult(taskResult.caughtValue, startTime, endTime)
           throw taskResult.caughtValue
+        } else {
+          this.#scheduleWithSuccessResult(taskResult.returnValue, startTime, endTime)
         }
         return taskResult.returnValue
       } finally {
