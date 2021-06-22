@@ -4,7 +4,7 @@ import { strict as assert } from 'assert'
 export type Task<C = unknown, R = unknown> = (context: C) => R | Promise<R>
 
 export interface FixedIntervalRunOptions {
-  type: 'RUN_START_TIME'
+  type: 'FIXED_INTERVAL'
   /**
    * Number of milliseconds between two run start times.
    */
@@ -131,19 +131,19 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
     this.#context = values[2] as C
   }
 
-  get successNextRunOptions(): null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R> {
+  get successNextRunOptions (): null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R> {
     return this.#options.onSuccess
   }
 
-  set successNextRunOptions(value: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R>) {
+  set successNextRunOptions (value: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R>) {
     this.#options.onSuccess = value
   }
 
-  get errorNextRunOptions(): null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C> {
+  get errorNextRunOptions (): null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C> {
     return this.#options.onError
   }
 
-  set errorNextRunOptions(value: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C>) {
+  set errorNextRunOptions (value: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C>) {
     this.#options.onError = value
   }
 
@@ -172,7 +172,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
    * Schedule the task to run after a given milliseconds or absolute date time. If
    * the task is already scheduled, it will be re-scheduled with attempt number retaining
    * the previous value.
-   * 
+   *
    * @param startDelayOrTime Start time of the next run. A delay in milliseconds, or
    * an absolute date time.
    */
@@ -206,10 +206,31 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithResult (taskResult: ExecutionResult<R>, startTime: Date, endTime: Date): void {
-    // TODO
+    if (this.#nextRunData === null) { assert.fail('#nextRunData should not be null') }
+    let nextRun: number | Date | null
+    if (taskResult.success) {
+      const options = this.#options.onSuccess
+      if (options === null) {
+        nextRun = null
+      } else if (typeof options === 'function') {
+        nextRun = options(taskResult.returnValue, { startTime, endTime }, this.#context)
+      } else {
+        if (options.type === 'FIXED_INTERVAL') {
+          if (options.onPastTime !== 'NEXT_INTERVAL') {
+            nextRun = new Date(this.#nextRunData.startTime.getTime() + options.interval)
+          } else {
+            // TODO
+          }
+        } else {
+          // TODO
+        }
+      }
+    } else {
+      // TODO
+    }
   }
 
-  #runTask(): void {
+  #runTask (): void {
     if (this.#taskRunningPromise !== null) { return }
     // In case of implementation error, we will just let it throw so that we can notice such error
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
