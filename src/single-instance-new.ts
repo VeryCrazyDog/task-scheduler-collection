@@ -70,26 +70,40 @@ export type OnErrorNextRunEvaluator<C = unknown> = (
   context: C
 ) => number | Date | null
 
-export interface SingleInstanceTaskSchedulerOptions {
+export interface SingleInstanceTaskSchedulerOptions<C, R> {
   /**
    * Defautl is `null`, which will not trigger any next run.
    */
-  onSuccess?: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator
+  onSuccess?: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R>
   /**
    * Default is `null`, which will not trigger any next run.
    */
-  onError?: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator
+  onError?: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C>
 }
 
 type CParamsWithoutCtx<C, R> = [
   task: Task<C, R>,
-  options?: SingleInstanceTaskSchedulerOptions
+  options?: SingleInstanceTaskSchedulerOptions<C, R>
 ]
 type CParamsWithCtx<C, R> = [
   task: Task<C, R>,
-  options: SingleInstanceTaskSchedulerOptions | undefined,
+  options: SingleInstanceTaskSchedulerOptions<C, R> | undefined,
   initialContext: C
 ]
+
+interface NextRunData {
+  startTime: Date
+  timer: NodeJS.Timeout
+  attemptNumber: number
+}
+
+type ExecutionResult<R = unknown> = {
+  success: true
+  returnValue: R
+} | {
+  success: false
+  caughtValue: any
+}
 
 // Public classes
 /**
@@ -99,11 +113,13 @@ type CParamsWithCtx<C, R> = [
  */
 export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   readonly #task: Task<C, R>
-  readonly #options: Required<SingleInstanceTaskSchedulerOptions>
+  readonly #options: Required<SingleInstanceTaskSchedulerOptions<C, R>>
   readonly #context: C
+  #nextRunData: null | NextRunData = null
+  #taskRunningPromise: Promise<R> | null = null
 
-  constructor (task: Task<C, R>, options?: SingleInstanceTaskSchedulerOptions)
-  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions | undefined, initialContext: C)
+  constructor (task: Task<C, R>, options?: SingleInstanceTaskSchedulerOptions<C, R>)
+  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions<C, R> | undefined, initialContext: C)
   // Reference https://stackoverflow.com/a/52477831/1131246
   constructor (...values: undefined extends C ? CParamsWithoutCtx<C, R> : CParamsWithCtx<C, R>) {
     this.#task = values[0]
@@ -113,5 +129,122 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       onError: options.onError ?? null
     }
     this.#context = values[2] as C
+  }
+
+  get successNextRunOptions(): null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R> {
+    return this.#options.onSuccess
+  }
+
+  set successNextRunOptions(value: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R>) {
+    this.#options.onSuccess = value
+  }
+
+  get errorNextRunOptions(): null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C> {
+    return this.#options.onError
+  }
+
+  set errorNextRunOptions(value: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C>) {
+    this.#options.onError = value
+  }
+
+  /**
+   * Whether a next run is scheduled.
+   */
+  get scheduled (): boolean {
+    return (this.#nextRunData !== null)
+  }
+
+  /**
+   * The next run time of the task. `null` indicates that there will be no next run.
+   */
+  get nextRunTime (): null | Date {
+    return this.#nextRunData?.startTime ?? null
+  }
+
+  /**
+   * Whether the task is currently running.
+   */
+  get running (): boolean {
+    return this.#taskRunningPromise !== null
+  }
+
+  /**
+   * Schedule the task to run after a given milliseconds or absolute date time. If
+   * the task is already scheduled, it will be re-scheduled with attempt number retaining
+   * the previous value.
+   * 
+   * @param startDelayOrTime Start time of the next run. A delay in milliseconds, or
+   * an absolute date time.
+   */
+  schedule (startDelayOrTime: number | Date): void {
+    const prevAttemptNumber = this.#nextRunData?.attemptNumber
+    let startTime: Date
+    let delay: number
+    if (startDelayOrTime instanceof Date) {
+      startTime = startDelayOrTime
+      delay = startDelayOrTime.getTime() - Date.now()
+    } else {
+      delay = startDelayOrTime
+      startTime = new Date(Date.now() + startDelayOrTime)
+    }
+    this.cancelNextRun()
+    this.#nextRunData = {
+      startTime,
+      timer: setTimeout(this.#runTask.bind(this), delay),
+      attemptNumber: prevAttemptNumber ?? 1
+    }
+  }
+
+  /**
+   * Cancel the next scheduled run. Task already running will not be cancelled.
+   */
+  cancelNextRun (): void {
+    if (this.#nextRunData != null) {
+      clearTimeout(this.#nextRunData.timer)
+    }
+    this.#nextRunData = null
+  }
+
+  #scheduleWithResult (taskResult: ExecutionResult<R>, startTime: Date, endTime: Date): void {
+    // TODO
+  }
+
+  #runTask(): void {
+    if (this.#taskRunningPromise !== null) { return }
+    // In case of implementation error, we will just let it throw so that we can notice such error
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.#taskRunningPromise = (async () => {
+      try {
+        let taskResult: ExecutionResult<R>
+        const startTime = new Date()
+        try {
+          taskResult = {
+            success: true,
+            returnValue: await this.#task(this.#context)
+          }
+        } catch (error) {
+          taskResult = {
+            success: false,
+            caughtValue: error
+          }
+        }
+        const endTime = new Date()
+        this.#scheduleWithResult(taskResult, startTime, endTime)
+        if (!taskResult.success) {
+          throw taskResult.caughtValue
+        }
+        return taskResult.returnValue
+      } finally {
+        this.#taskRunningPromise = null
+      }
+    })()
+  }
+
+  /**
+   * Schedule the task to run as soon as possible without waiting for the task returned
+   * value. If configured, next run will be scheduled after run completed.
+   */
+  run (): void {
+    this.schedule(0)
   }
 }
