@@ -232,8 +232,6 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
 
   #runTask (): void {
     if (this.#taskRunningPromise !== null) { return }
-    // In case of implementation error, we will just let it throw so that we can notice such error
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#taskRunningPromise = (async () => {
       try {
         let taskResult: ExecutionResult<R>
@@ -259,13 +257,17 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
         this.#taskRunningPromise = null
       }
     })()
+    // Avoid unhandled rejection
+    this.#taskRunningPromise.catch(() => {})
   }
 
   /**
    * Run task immediately without waiting for the task returned value. Previous attempt number
    * is retained. If configured, next run will be scheduled after run completed.
    */
-  run (): void {
+  // We intented to return Promise from non-async function
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  run (): Promise<R> {
     const prevAttemptNumber = this.#nextRunData?.attemptNumber
     this.cancelNextRun()
     this.#nextRunData = {
@@ -274,5 +276,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       attemptNumber: prevAttemptNumber ?? 1
     }
     this.#runTask()
+    if (this.#taskRunningPromise === null) { assert.fail('taskRunningPromise should not be null') }
+    return this.#taskRunningPromise
   }
 }
