@@ -93,7 +93,7 @@ type CParamsWithCtx<C, R> = [
 
 interface NextRunData {
   startTime: Date
-  timer: NodeJS.Timeout
+  timer: NodeJS.Timeout | null
   attemptNumber: number
 }
 
@@ -199,7 +199,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
    * Cancel the next scheduled run. Task already running will not be cancelled.
    */
   cancelNextRun (): void {
-    if (this.#nextRunData != null) {
+    if (this.#nextRunData?.timer != null) {
       clearTimeout(this.#nextRunData.timer)
     }
     this.#nextRunData = null
@@ -241,10 +241,17 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   /**
-   * Schedule the task to run as soon as possible without waiting for the task returned
-   * value. If configured, next run will be scheduled after run completed.
+   * Run task immediately without waiting for the task returned value. Previous attempt number
+   * is retained. If configured, next run will be scheduled after run completed.
    */
   run (): void {
-    this.schedule(0)
+    const prevAttemptNumber = this.#nextRunData?.attemptNumber
+    this.cancelNextRun()
+    this.#nextRunData = {
+      startTime: new Date(),
+      timer: null,
+      attemptNumber: prevAttemptNumber ?? 1
+    }
+    this.#runTask()
   }
 }
