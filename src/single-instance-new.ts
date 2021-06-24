@@ -9,7 +9,7 @@ export interface FixedIntervalRunOptions {
    * Number of milliseconds between two run start times.
    */
   interval: number
-  onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_INTERVAL'
+  onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_TIME_SLOT'
 }
 export interface OnCompleteRunOptions {
   type: 'RUN_END_TIME'
@@ -170,19 +170,14 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
    */
   schedule (startDelayOrTime: number | Date): void {
     const prevAttemptNumber = this.#nextRunData?.attemptNumber
-    let startTime: Date
-    let delay: number
-    if (startDelayOrTime instanceof Date) {
-      startTime = startDelayOrTime
-      delay = startDelayOrTime.getTime() - Date.now()
-    } else {
-      delay = startDelayOrTime
-      startTime = new Date(Date.now() + startDelayOrTime)
+    let startTime = startDelayOrTime
+    if (typeof startTime === 'number') {
+      startTime = new Date(Date.now() + startTime)
     }
     this.cancelNextRun()
     this.#nextRunData = {
       startTime,
-      timer: setTimeout(this.#runTask.bind(this), delay),
+      timer: setTimeout(this.#runTask.bind(this), startTime.getDate() - Date.now()),
       attemptNumber: prevAttemptNumber ?? 1
     }
   }
@@ -198,25 +193,52 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithSuccessResult (taskReturnValue: R, startTime: Date, endTime: Date): void {
-    if (this.#nextRunData === null) { assert.fail('#nextRunData should not be null') }
-    let nextRun: number | Date | null
+    const thisRunData = this.#nextRunData
+    if (thisRunData === null) { assert.fail('Expect thisRunData is not null') }
     const options = this.#options.onSuccess
+    // Determine next run time
+    let nextRun: number | Date | null
     if (options === null) {
       nextRun = null
     } else if (typeof options === 'function') {
       nextRun = options(taskReturnValue, { startTime, endTime }, this.#context)
     } else if (options.type === 'FIXED_INTERVAL') {
-      if (options.onPastTime !== 'NEXT_INTERVAL') {
-        nextRun = new Date(this.#nextRunData.startTime.getTime() + options.interval)
+      if (options.onPastTime === 'EXECUTE_IMMEDIATELY') {
+        nextRun = new Date(thisRunData.startTime.getTime() + options.interval)
+      } else if (options.onPastTime === 'NEXT_TIME_SLOT') {
+        if (options.interval <= 1) {
+          nextRun = new Date()
+        } else {
+          const thisTimeSlot = thisRunData.startTime.getTime()
+          const interval = options.interval
+          const now = Date.now()
+          const diff = now - thisTimeSlot
+          const increment = (((diff - (diff % interval)) / interval) + 1) * interval
+          const newTimestampMs = thisTimeSlot + increment
+          if (!(newTimestampMs > now)) { assert.fail('Expect newTimestampMs is greater than now') }
+          nextRun = new Date(newTimestampMs)
+        }
       } else {
-        // TODO
+        assert.fail('Not implemented case')
       }
     } else if (options.type === 'RUN_END_TIME') {
       nextRun = new Date(endTime.getTime() + options.delay)
     } else {
       assert.fail('Not implemented case')
     }
-    // TODO
+    // Use next run time to set next run data
+    if (nextRun === null) {
+      this.#nextRunData = null
+    } else {
+      if (typeof nextRun === 'number') {
+        nextRun = new Date(Date.now() + nextRun)
+      }
+      this.#nextRunData = {
+        startTime: nextRun,
+        timer: setTimeout(this.#runTask.bind(this), nextRun.getTime() - Date.now()),
+        attemptNumber: 1
+      }
+    }
   }
 
   #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
@@ -279,7 +301,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       attemptNumber: prevAttemptNumber ?? 1
     }
     this.#runTask()
-    if (this.#taskRunningPromise === null) { assert.fail('taskRunningPromise should not be null') }
+    if (this.#taskRunningPromise === null) { assert.fail('Expect #taskRunningPromise is not null') }
     return this.#taskRunningPromise
   }
 }
