@@ -1,38 +1,25 @@
 import { strict as assert } from 'assert'
 
-export type Task<C = unknown, T = unknown> = (context: C) => T | Promise<T>
+// TypeScript typing
+export type Task<C = unknown, R = unknown> = (context: C) => R | Promise<R>
 
-interface NextRunData {
-  startTime: Date
-  timer: NodeJS.Timeout
-  attemptNumber: number
-}
-
-interface FirstAttemptMetadata {
-  startTime: Date
-  endTime: Date
-}
-
-export type ExecutionResult<T = unknown> = {
-  type: 'SUCCESS'
-  returnValue: T
-} | {
-  type: 'ERROR'
-  caughtValue: any
-}
-export interface ExecutionMetadata {
+export interface FixedIntervalRunOptions {
+  type: 'FIXED_INTERVAL'
   /**
-   * Start time of the first attempt.
+   * Number of milliseconds between two run start times.
    */
-  firstAttemptStartTime: Date
+  interval: number
+  onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_TIME_SLOT'
+}
+export interface OnCompleteRunOptions {
+  type: 'RUN_END_TIME'
   /**
-   * End time of the first attempt.
+   * Number of milliseconds to wait for the next run to start, since the last run end time.
    */
-  firstAttemptEndTime: Date
-  /**
-   * The attempt number of this attempt. `1` for first attempt. `2` for second retry attempt.
-   */
-  attemptNumber: number
+  delay: number
+}
+export type OnSuccessNextRunOptions = FixedIntervalRunOptions | OnCompleteRunOptions
+export interface SuccessRunMetadata {
   /**
    * Start time of this attempt.
    */
@@ -42,61 +29,118 @@ export interface ExecutionMetadata {
    */
   endTime: Date
 }
-export interface NextRunRequest {
-  startDelayOrTime: number | Date
-  /**
-   * Whether the next run is a retry attempt
-   */
-  isRetry: boolean
-}
-export type NextRunTimeEvaluator<C = unknown, T = unknown> = (
-  result: ExecutionResult<T>,
-  meta: ExecutionMetadata,
+export type OnSuccessNextRunEvaluator<C = unknown, R = unknown> = (
+  returnValue: R,
+  meta: SuccessRunMetadata,
   context: C
-) => NextRunRequest | null
+) => number | Date | null
 
-type CParamsWithoutContext<C, T> = [
-  task: Task<C, T>,
-  // TODO Split NextRunTimeEvaluator into OnSuccessNextRunTimeEvalutor and OnErrorNextRunTImeEvalutor
-  nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null
+export interface OnErrorNextRunOptions {
+  delay: number
+  /**
+   * Maximum number of attempt. Default is `Infinity`.
+   */
+  attempt?: number
+}
+export interface ErrorRunMetadata {
+  /**
+    * The attempt number of this attempt. `1` for first attempt. `2` for second retry attempt.
+    */
+  attemptNumber: number
+  /**
+     * Start time of this attempt.
+     */
+  startTime: Date
+  /**
+     * End time of this attempt.
+     */
+  endTime: Date
+  /**
+   * Start time of the first attempt.
+   */
+  firstAttemptStartTime: Date
+  /**
+    * End time of the first attempt.
+    */
+  firstAttemptEndTime: Date
+}
+export type OnErrorNextRunEvaluator<C = unknown> = (
+  caughtValue: any,
+  meta: ErrorRunMetadata,
+  context: C
+) => number | Date | null
+
+export interface SingleInstanceTaskSchedulerOptions<C, R> {
+  /**
+   * Defautl is `null`, which will not trigger any next run.
+   */
+  onSuccess?: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R>
+  /**
+   * Default is `null`, which will not trigger any next run.
+   */
+  onError?: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C>
+}
+
+type CParamsWithoutCtx<C, R> = [
+  task: Task<C, R>,
+  options?: SingleInstanceTaskSchedulerOptions<C, R>
 ]
-type CParamsWithContext<C, T> = [
-  task: Task<C, T>,
-  nextRunTime: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null | undefined,
+type CParamsWithCtx<C, R> = [
+  task: Task<C, R>,
+  options: SingleInstanceTaskSchedulerOptions<C, R> | undefined,
   initialContext: C
 ]
 
-/**
- * A single instance task scheduler with flexible next run time.
- *
- * Stability: 1 - Experimental.
- */
-export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
-  readonly #task: Task<C, T>
-  readonly #context: C
-  #nextRunTimeEvaluator: null | NextRunTimeEvaluator<C, T> = null
-  /**
-   * `null` indicates there is no next run, `undefined` indicate next run information
-   * is going to be set after the current running task end.
-   */
-  #nextRunData: NextRunData | null | undefined = null
-  #taskRunningPromise: Promise<T> | null = null
-  #firstAttempt: FirstAttemptMetadata | null = null
+interface NextRunData {
+  startTime: Date
+  timer: NodeJS.Timeout | null
+  attemptNumber: number
+  firstAttempt?: {
+    startTime: Date
+    endTime: Date
+  }
+}
 
-  // TODO When using the constructor, we can only see one function signiture. We shall add more function signitures.
-  constructor (...values: undefined extends C ? CParamsWithoutContext<C, T> : CParamsWithContext<C, T>)
-  constructor (
-    task: Task<C, T>,
-    /**
-     * Options for next run time, or a function that return the next run time of the task.
-     * Default is `null`.
-     */
-    nextRunTime?: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null,
-    initialContext: C = undefined as any
-  ) {
-    this.#task = task
-    this.#context = initialContext
-    this.setNextRunTimeOptions(nextRunTime ?? null)
+// Public classes
+/**
+ * A task scheduler which have at most 1 running task at any time.
+ *
+ * Stability: 2 - Stable.
+ */
+export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
+  readonly #task: Task<C, R>
+  readonly #options: Required<SingleInstanceTaskSchedulerOptions<C, R>>
+  readonly #context: C
+  #nextRunData: null | NextRunData = null
+  #taskRunningPromise: Promise<R> | null = null
+
+  constructor (task: Task<C, R>, options?: SingleInstanceTaskSchedulerOptions<C, R>)
+  constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions<C, R> | undefined, initialContext: C)
+  // Reference https://stackoverflow.com/a/52477831/1131246
+  constructor (...values: undefined extends C ? CParamsWithoutCtx<C, R> : CParamsWithCtx<C, R>) {
+    this.#task = values[0]
+    const options = values[1] ?? {}
+    this.#options = {
+      onSuccess: options.onSuccess ?? null,
+      onError: options.onError ?? null
+    }
+    this.#context = values[2] as C
+  }
+
+  get successNextRunOptions (): null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R> {
+    return this.#options.onSuccess
+  }
+
+  set successNextRunOptions (value: null | OnSuccessNextRunOptions | OnSuccessNextRunEvaluator<C, R>) {
+    this.#options.onSuccess = value
+  }
+
+  get errorNextRunOptions (): null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C> {
+    return this.#options.onError
+  }
+
+  set errorNextRunOptions (value: null | OnErrorNextRunOptions | OnErrorNextRunEvaluator<C>) {
+    this.#options.onError = value
   }
 
   /**
@@ -106,20 +150,11 @@ export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
     return (this.#nextRunData !== null)
   }
 
-  // Maybe we can consider to return `Date | null | Promise<Date | null>`?
   /**
    * The next run time of the task. `null` indicates that there will be no next run.
-   * `undefined` indicates that the next run time is going to be known after the current
-   * task end.
    */
-  get nextRunTime (): Date | null | undefined {
-    let result: Date | null | undefined
-    if (this.#nextRunData == null) {
-      result = this.#nextRunData
-    } else {
-      result = this.#nextRunData.startTime
-    }
-    return result
+  get nextRunTime (): null | Date {
+    return this.#nextRunData?.startTime ?? null
   }
 
   /**
@@ -130,207 +165,184 @@ export class SingleInstanceTaskScheduler<C = undefined, T = unknown> {
   }
 
   /**
-   * Set options for next run time, or a function that return the next run time of the task.
-   * Scheduled next run time will not be changed.
-   *
-   * If a function is provided, it will be called after a task ended to evaluate the
-   * next run time. The returned value can be a delay in milliseconds, or an absolute
-   * date time `Date` object, or `null` which indicate no next run. Default is `null`.
-   */
-  setNextRunTimeOptions (value: NextRunTimeOptions | NextRunTimeEvaluator<C, T> | null): void {
-    if (typeof value === 'function' || value === null) {
-      this.#nextRunTimeEvaluator = value
-    } else {
-      // TODO Also store the value to allow users to access the value again later on
-      this.#nextRunTimeEvaluator = _buildEvaluator(value)
-    }
-  }
-
-  /**
    * Schedule the task to run after a given milliseconds or absolute date time. If
-   * the task is already scheduled, it will be re-scheduled.
-   * @param startDelayOrTime Start time of the next run. A delay in milliseconds, or an absolute
-   *   date time.
+   * the task is already scheduled, it will be re-scheduled with attempt number retaining
+   * the previous value.
+   *
+   * @param startDelayOrTime Start time of the next run. A delay in milliseconds, or
+   * an absolute date time.
    */
   schedule (startDelayOrTime: number | Date): void {
     const prevAttemptNumber = this.#nextRunData?.attemptNumber
-    let startTime: Date
-    let delay: number
-    if (startDelayOrTime instanceof Date) {
-      startTime = startDelayOrTime
-      delay = startDelayOrTime.getTime() - Date.now()
-    } else {
-      delay = startDelayOrTime
-      startTime = new Date(Date.now() + startDelayOrTime)
+    let startTime = startDelayOrTime
+    if (typeof startTime === 'number') {
+      startTime = new Date(Date.now() + startTime)
     }
     this.cancelNextRun()
     this.#nextRunData = {
       startTime,
-      timer: setTimeout(this.run.bind(this), delay),
+      timer: setTimeout(this.#runTask.bind(this), startTime.getDate() - Date.now()),
       attemptNumber: prevAttemptNumber ?? 1
     }
   }
 
   /**
-   * Cancel the next scheduled run. Running task will not be affected.
+   * Cancel the next scheduled run. Task already running will not be cancelled.
    */
   cancelNextRun (): void {
-    if (this.#nextRunData != null) {
+    if (this.#nextRunData?.timer != null) {
       clearTimeout(this.#nextRunData.timer)
     }
     this.#nextRunData = null
   }
 
-  private scheduleWithResult (taskResult: ExecutionResult<T>, startTime: Date, endTime: Date): void {
-    if (this.#nextRunTimeEvaluator == null) {
+  #scheduleWithSuccessResult (taskReturnValue: R, startTime: Date, endTime: Date): void {
+    if (this.#nextRunData === null) { assert.fail('Expect thisRunData is not null') }
+    const thisRunData = this.#nextRunData
+    const options = this.#options.onSuccess
+    // Determine next run time
+    let nextRun: number | Date | null
+    if (options === null) {
+      nextRun = null
+    } else if (typeof options === 'function') {
+      nextRun = options(taskReturnValue, { startTime, endTime }, this.#context)
+    } else if (options.type === 'FIXED_INTERVAL') {
+      if (options.onPastTime === 'EXECUTE_IMMEDIATELY') {
+        nextRun = new Date(thisRunData.startTime.getTime() + options.interval)
+      } else if (options.onPastTime === 'NEXT_TIME_SLOT') {
+        if (options.interval <= 1) {
+          nextRun = new Date()
+        } else {
+          const thisTimeSlot = thisRunData.startTime.getTime()
+          const interval = options.interval
+          const now = Date.now()
+          const diff = now - thisTimeSlot
+          const increment = (((diff - (diff % interval)) / interval) + 1) * interval
+          const newTimestampMs = thisTimeSlot + increment
+          if (!(newTimestampMs > now)) { assert.fail('Expect newTimestampMs is greater than now') }
+          nextRun = new Date(newTimestampMs)
+        }
+      } else {
+        assert.fail('Not implemented case')
+      }
+    } else if (options.type === 'RUN_END_TIME') {
+      nextRun = new Date(endTime.getTime() + options.delay)
+    } else {
+      assert.fail('Not implemented case')
+    }
+    // Use next run time to set next run data
+    if (nextRun === null) {
       this.#nextRunData = null
     } else {
-      const thisRunAttemptNumber = this.#nextRunData?.attemptNumber ?? 1
-      const nextRunRequest = this.#nextRunTimeEvaluator(taskResult, {
-        firstAttemptStartTime: this.#firstAttempt?.startTime ?? startTime,
-        firstAttemptEndTime: this.#firstAttempt?.endTime ?? endTime,
-        attemptNumber: thisRunAttemptNumber,
+      if (typeof nextRun === 'number') {
+        nextRun = new Date(Date.now() + nextRun)
+      }
+      this.#nextRunData = {
+        startTime: nextRun,
+        timer: setTimeout(this.#runTask.bind(this), nextRun.getTime() - Date.now()),
+        attemptNumber: 1
+      }
+    }
+  }
+
+  #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
+    if (this.#nextRunData === null) { assert.fail('Expect thisRunData is not null') }
+    const thisRunData = this.#nextRunData
+    assert.ok((thisRunData.attemptNumber === 1) === (thisRunData.firstAttempt === undefined))
+    const options = this.#options.onError
+    // Determine next run time
+    let nextRun: number | Date | null
+    if (options === null) {
+      nextRun = null
+    } else if (typeof options === 'function') {
+      nextRun = options(caughtValue, {
+        attemptNumber: thisRunData.attemptNumber,
         startTime,
-        endTime
+        endTime,
+        firstAttemptStartTime: thisRunData.firstAttempt?.startTime ?? startTime,
+        firstAttemptEndTime: thisRunData.firstAttempt?.endTime ?? endTime
       }, this.#context)
-      if (nextRunRequest === null) {
-        this.#nextRunData = null
-      } else if (this.#nextRunData !== null) {
-        // Next run was not cancelled, so we schedule the next run
-        this.schedule(nextRunRequest.startDelayOrTime)
-        if (this.#nextRunData === undefined) { assert.fail('nextRunData should not be undefined') }
-        // Update first attempt metadata and next run attempt number
-        if (nextRunRequest.isRetry) {
-          if (thisRunAttemptNumber === 1) {
-            this.#firstAttempt = {
-              startTime,
-              endTime
-            }
-          }
-          this.#nextRunData.attemptNumber = thisRunAttemptNumber + 1
-        } else {
-          this.#firstAttempt = null
-          this.#nextRunData.attemptNumber = 1
+    } else if (thisRunData.attemptNumber >= (options.attempt ?? Infinity)) {
+      nextRun = null
+    } else {
+      nextRun = new Date(endTime.getTime() + options.delay)
+    }
+    // Use next run time to set next run data
+    if (nextRun === null) {
+      this.#nextRunData = null
+    } else {
+      if (typeof nextRun === 'number') {
+        nextRun = new Date(Date.now() + nextRun)
+      }
+      this.#nextRunData.startTime = nextRun
+      this.#nextRunData.timer = setTimeout(this.#runTask.bind(this), nextRun.getTime() - Date.now())
+      this.#nextRunData.attemptNumber++
+      if (thisRunData.attemptNumber === 1) {
+        this.#nextRunData.firstAttempt = {
+          startTime,
+          endTime
         }
       }
     }
   }
 
-  /**
-   * Run the scheduled task immediately without waiting for the task returned value. Next
-   * run will be scheduled if configured.
-   */
-  run (): void {
-    if (this.#nextRunData === null) {
-      this.#nextRunData = undefined
+  #runTask (): void {
+    type ExecutionResult = {
+      success: true
+      returnValue: R
+    } | {
+      success: false
+      caughtValue: any
     }
+
     if (this.#taskRunningPromise !== null) { return }
-    // In case of implementation error, we will just let it throw so that we can notice such error
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#taskRunningPromise = (async () => {
       try {
-        let taskResult: ExecutionResult<T>
+        let taskResult: ExecutionResult
         const startTime = new Date()
         try {
           taskResult = {
-            type: 'SUCCESS',
+            success: true,
             returnValue: await this.#task(this.#context)
           }
         } catch (error) {
           taskResult = {
-            type: 'ERROR',
+            success: false,
             caughtValue: error
           }
         }
         const endTime = new Date()
-        this.scheduleWithResult(taskResult, startTime, endTime)
-        if (taskResult.type === 'ERROR') {
+        if (!taskResult.success) {
+          this.#scheduleWithErrorResult(taskResult.caughtValue, startTime, endTime)
           throw taskResult.caughtValue
+        } else {
+          this.#scheduleWithSuccessResult(taskResult.returnValue, startTime, endTime)
         }
         return taskResult.returnValue
       } finally {
         this.#taskRunningPromise = null
       }
     })()
+    // Avoid unhandled rejection
+    this.#taskRunningPromise.catch(() => {})
   }
 
   /**
-   * Run the scheduled task immediately and return a promise which will be fulfilled
-   * with the task returned value. Next run will be scheduled if configured.
+   * Run task immediately without waiting for the task returned value. Previous attempt number
+   * is retained. If configured, next run will be scheduled after run completed.
    */
-  async runReturnResult (): Promise<T> {
-    this.run()
-    if (this.#taskRunningPromise === null) { assert.fail('taskRunningPromise should not be null') }
-    return await this.#taskRunningPromise
-  }
-}
-
-// -----------------------------------------------------------------------------
-
-export interface OneTimeEvaluateOptions {
-  type: 'ONE_TIME'
-}
-export interface FixedIntervalEvaluateOptions {
-  type: 'RUN_START_TIME'
-  delay: number
-  // TODO Implement logic for this option
-  onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_INTERVAL'
-}
-export interface RegularIntervalEvaluateOptions {
-  type: 'RUN_END_TIME'
-  delay: number
-}
-export interface OnErrorEvaluateOptions {
-  delay: number
-  /**
-   * Default is `Infinity`.
-   */
-  attempt?: number
-}
-export interface NextRunTimeOptions {
-  onSuccess?: OneTimeEvaluateOptions | FixedIntervalEvaluateOptions | RegularIntervalEvaluateOptions
-  /**
-   * Default is `undefined`, which will not perform retry.
-   */
-  onError?: OnErrorEvaluateOptions
-}
-
-// TODO Remove from export in future
-export function _buildEvaluator<C, T> (options: NextRunTimeOptions): NextRunTimeEvaluator<C, T> {
-  return (result, meta): NextRunRequest | null => {
-    let request: NextRunRequest | null
-    if (result.type === 'SUCCESS') {
-      const onSuccess = options.onSuccess ?? { type: 'ONE_TIME' }
-      if (onSuccess.type === 'ONE_TIME') {
-        request = null
-      } else if (onSuccess.type === 'RUN_START_TIME') {
-        request = {
-          startDelayOrTime: new Date(meta.startTime.getTime() + onSuccess.delay),
-          isRetry: false
-        }
-      } else if (onSuccess.type === 'RUN_END_TIME') {
-        request = {
-          startDelayOrTime: onSuccess.delay,
-          isRetry: false
-        }
-      } else {
-        assert.fail('Not implemented onSuccess.type')
-      }
-    } else if (result.type === 'ERROR') {
-      if (
-        options.onError === undefined ||
-        (options.onError.attempt !== undefined && meta.attemptNumber >= options.onError.attempt)
-      ) {
-        request = null
-      } else {
-        request = {
-          startDelayOrTime: options.onError.delay,
-          isRetry: true
-        }
-      }
-    } else {
-      assert.fail('Not implemented onError.type')
+  // We intented to return Promise from non-async function
+  // eslint-disable-next-line @typescript-eslint/promise-function-async
+  run (): Promise<R> {
+    const prevAttemptNumber = this.#nextRunData?.attemptNumber
+    this.cancelNextRun()
+    this.#nextRunData = {
+      startTime: new Date(),
+      timer: null,
+      attemptNumber: prevAttemptNumber ?? 1
     }
-    return request
+    this.#runTask()
+    if (this.#taskRunningPromise === null) { assert.fail('Expect #taskRunningPromise is not null') }
+    return this.#taskRunningPromise
   }
 }
