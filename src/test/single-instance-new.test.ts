@@ -71,7 +71,7 @@ test('should return correct scheduled flag', async t => {
   })
   t.is(scheduler.scheduled, false)
 
-  scheduler.run()
+  scheduler.run().catch(() => {})
   t.is(scheduler.scheduled, true)
   await delay(100)
   t.is(scheduler.scheduled, true)

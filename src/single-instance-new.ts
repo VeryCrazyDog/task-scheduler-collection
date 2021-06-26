@@ -95,6 +95,10 @@ interface NextRunData {
   startTime: Date
   timer: NodeJS.Timeout | null
   attemptNumber: number
+  firstAttempt?: {
+    startTime: Date
+    endTime: Date
+  }
 }
 
 // Public classes
@@ -193,8 +197,8 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithSuccessResult (taskReturnValue: R, startTime: Date, endTime: Date): void {
+    if (this.#nextRunData === null) { assert.fail('Expect thisRunData is not null') }
     const thisRunData = this.#nextRunData
-    if (thisRunData === null) { assert.fail('Expect thisRunData is not null') }
     const options = this.#options.onSuccess
     // Determine next run time
     let nextRun: number | Date | null
@@ -242,7 +246,44 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
-    // TODO
+    if (this.#nextRunData === null) { assert.fail('Expect thisRunData is not null') }
+    const thisRunData = this.#nextRunData
+    assert.ok((thisRunData.attemptNumber === 1) === (thisRunData.firstAttempt === undefined))
+    const options = this.#options.onError
+    // Determine next run time
+    let nextRun: number | Date | null
+    if (options === null) {
+      nextRun = null
+    } else if (typeof options === 'function') {
+      nextRun = options(caughtValue, {
+        attemptNumber: thisRunData.attemptNumber,
+        startTime,
+        endTime,
+        firstAttemptStartTime: thisRunData.firstAttempt?.startTime ?? startTime,
+        firstAttemptEndTime: thisRunData.firstAttempt?.endTime ?? endTime
+      }, this.#context)
+    } else if (thisRunData.attemptNumber >= (options.attempt ?? Infinity)) {
+      nextRun = null
+    } else {
+      nextRun = new Date(endTime.getTime() + options.delay)
+    }
+    // Use next run time to set next run data
+    if (nextRun === null) {
+      this.#nextRunData = null
+    } else {
+      if (typeof nextRun === 'number') {
+        nextRun = new Date(Date.now() + nextRun)
+      }
+      this.#nextRunData.startTime = nextRun
+      this.#nextRunData.timer = setTimeout(this.#runTask.bind(this), nextRun.getTime() - Date.now())
+      this.#nextRunData.attemptNumber++
+      if (thisRunData.attemptNumber === 1) {
+        this.#nextRunData.firstAttempt = {
+          startTime,
+          endTime
+        }
+      }
+    }
   }
 
   #runTask (): void {
