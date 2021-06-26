@@ -9,7 +9,13 @@ export interface FixedIntervalRunOptions {
    * Number of milliseconds between two run start times.
    */
   interval: number
-  onPastTime: 'EXECUTE_IMMEDIATELY' | 'NEXT_TIME_SLOT'
+  /**
+   * Handling way when this run finished at a time which missed the next run start
+   * time. Default is `RUN_IMMEDIATELY`. Notice that if multiple next run start times
+   * are missed, the next run will only run once. In other words, only 1 maximum pending
+   * run can exist.
+   */
+  onPastTime?: 'RUN_IMMEDIATELY' | 'NEXT_RUN_TIME'
 }
 export interface OnCompleteRunOptions {
   type: 'RUN_END_TIME'
@@ -207,9 +213,10 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
     } else if (typeof options === 'function') {
       nextRun = options(taskReturnValue, { startTime, endTime }, this.#context)
     } else if (options.type === 'FIXED_INTERVAL') {
-      if (options.onPastTime === 'EXECUTE_IMMEDIATELY') {
+      const onPastTime = options.onPastTime ?? 'RUN_IMMEDIATELY'
+      if (onPastTime === 'RUN_IMMEDIATELY') {
         nextRun = new Date(thisRunData.startTime.getTime() + options.interval)
-      } else if (options.onPastTime === 'NEXT_TIME_SLOT') {
+      } else if (onPastTime === 'NEXT_RUN_TIME') {
         if (options.interval <= 1) {
           nextRun = new Date()
         } else {
