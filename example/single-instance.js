@@ -16,8 +16,8 @@ async function fakeApiCall () {
 
 const scheduler = new SingleInstanceTaskScheduler(fakeApiCall, {
   onSuccess: {
-    type: 'RUN_START_TIME',
-    delay: 1000
+    type: 'FIXED_INTERVAL',
+    interval: 1000
   }
 })
 scheduler.run()
