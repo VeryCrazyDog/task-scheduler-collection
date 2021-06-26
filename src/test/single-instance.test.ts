@@ -18,6 +18,29 @@ test('should run one time task only once', async t => {
   scheduler.cancelNextRun()
 })
 
+test('should attempt the specified number of times', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(() => {
+    runCount++
+    throw new Error('Mock error')
+  }, {
+    onError: {
+      delay: 100,
+      attempt: 2
+    }
+  })
+  t.is(runCount, 0)
+  scheduler.schedule(0)
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  await delay(100)
+  t.is(runCount, 2)
+  scheduler.cancelNextRun()
+})
+
 // test('should produce correct delay when returning number in next run time evaluator', async t => {
 //   let runCount = 0
 //   const scheduler = new SingleInstanceTaskScheduler(async () => {

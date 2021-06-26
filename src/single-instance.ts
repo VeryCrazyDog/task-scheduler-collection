@@ -303,6 +303,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
     }
 
     if (this.#taskRunningPromise !== null) { return }
+    let isFinallyExecuted = false
     this.#taskRunningPromise = (async () => {
       try {
         let taskResult: ExecutionResult
@@ -328,10 +329,16 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
         return taskResult.returnValue
       } finally {
         this.#taskRunningPromise = null
+        isFinallyExecuted = true
       }
     })()
     // Avoid unhandled rejection
+    // TODO Shall we throw our own assertion error here?
     this.#taskRunningPromise.catch(() => {})
+    // In case the task returns immediately in the current iteration of the Node.js event loop
+    if (isFinallyExecuted) {
+      this.#taskRunningPromise = null
+    }
   }
 
   /**
