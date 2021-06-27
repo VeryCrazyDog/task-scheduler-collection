@@ -259,8 +259,8 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
-    if (this.#nextRunData === null) { throw new AssertionError('Expect thisRunData is not null') }
     const thisRunData = this.#nextRunData
+    if (thisRunData === null) { throw new AssertionError('Expect thisRunData is not null') }
     if ((thisRunData.attemptNumber === 1) !== (thisRunData.firstAttempt === undefined)) {
       throw new AssertionError('Expect firstAttempt is defined when attemptNumber is larger than 1')
     }
@@ -289,9 +289,11 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       if (typeof nextRun === 'number') {
         nextRun = new Date(Date.now() + nextRun)
       }
-      this.#nextRunData.startTime = nextRun
-      this.#nextRunData.timer = setTimeout(this.#runTask.bind(this), nextRun.getTime() - Date.now())
-      this.#nextRunData.attemptNumber++
+      this.#nextRunData = {
+        startTime: nextRun,
+        timer: setTimeout(this.#runTask.bind(this), nextRun.getTime() - Date.now()),
+        attemptNumber: thisRunData.attemptNumber + 1
+      }
       if (thisRunData.attemptNumber === 1) {
         this.#nextRunData.firstAttempt = {
           startTime,
