@@ -1,5 +1,3 @@
-import { strict as assert } from 'assert'
-
 // TypeScript typing
 export type Task<C = unknown, R = unknown> = (context: C) => R | Promise<R>
 
@@ -107,6 +105,14 @@ interface NextRunData {
   }
 }
 
+// Private classes
+class AssertionError extends Error {
+  constructor (message?: string) {
+    super(message)
+    this.name = 'AssertionError'
+  }
+}
+
 // Public classes
 /**
  * A task scheduler which have at most 1 running task at any time.
@@ -203,7 +209,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithSuccessResult (taskReturnValue: R, startTime: Date, endTime: Date): void {
-    if (this.#nextRunData === null) { assert.fail('Expect thisRunData is not null') }
+    if (this.#nextRunData === null) { throw new AssertionError('Expect thisRunData is not null') }
     const thisRunData = this.#nextRunData
     const options = this.#options.onSuccess
     // Determine next run time
@@ -226,16 +232,16 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
           const diff = now - thisTimeSlot
           const increment = (((diff - (diff % interval)) / interval) + 1) * interval
           const newTimestampMs = thisTimeSlot + increment
-          if (!(newTimestampMs > now)) { assert.fail('Expect newTimestampMs is greater than now') }
+          if (!(newTimestampMs > now)) { throw new AssertionError('Expect newTimestampMs is greater than now') }
           nextRun = new Date(newTimestampMs)
         }
       } else {
-        assert.fail('Not implemented case')
+        throw new AssertionError('Not implemented case')
       }
     } else if (options.type === 'RUN_END_TIME') {
       nextRun = new Date(endTime.getTime() + options.delay)
     } else {
-      assert.fail('Not implemented case')
+      throw new AssertionError('Not implemented case')
     }
     // Use next run time to set next run data
     if (nextRun === null) {
@@ -253,9 +259,11 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
   }
 
   #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
-    if (this.#nextRunData === null) { assert.fail('Expect thisRunData is not null') }
+    if (this.#nextRunData === null) { throw new AssertionError('Expect thisRunData is not null') }
     const thisRunData = this.#nextRunData
-    assert.ok((thisRunData.attemptNumber === 1) === (thisRunData.firstAttempt === undefined))
+    if ((thisRunData.attemptNumber === 1) !== (thisRunData.firstAttempt === undefined)) {
+      throw new AssertionError('Expect firstAttempt is defined when attemptNumber is larger than 1')
+    }
     const options = this.#options.onError
     // Determine next run time
     let nextRun: number | Date | null
@@ -333,8 +341,11 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       }
     })()
     // Avoid unhandled rejection
-    // TODO Shall we throw our own assertion error here?
-    this.#taskRunningPromise.catch(() => {})
+    this.#taskRunningPromise.catch(error => {
+      if (error instanceof AssertionError) {
+        throw error
+      }
+    })
     // In case the task returns immediately in the current iteration of the Node.js event loop
     if (isFinallyExecuted) {
       this.#taskRunningPromise = null
@@ -356,7 +367,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       attemptNumber: prevAttemptNumber ?? 1
     }
     this.#runTask()
-    if (this.#taskRunningPromise === null) { assert.fail('Expect #taskRunningPromise is not null') }
+    if (this.#taskRunningPromise === null) { throw new AssertionError('Expect #taskRunningPromise is not null') }
     return this.#taskRunningPromise
   }
 }
