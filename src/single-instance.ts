@@ -208,6 +208,30 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
     this.#nextRunData = null
   }
 
+  #determineFixedIntervalNextRun (thisRunData: NextRunData, options: FixedIntervalRunOptions): Date {
+    let nextRun: Date
+    const onPastTime = options.onPastTime ?? 'RUN_IMMEDIATELY'
+    if (onPastTime === 'RUN_IMMEDIATELY') {
+      nextRun = new Date(thisRunData.startTime.getTime() + options.interval)
+    } else if (onPastTime === 'NEXT_RUN_TIME') {
+      if (options.interval <= 1) {
+        nextRun = new Date()
+      } else {
+        const thisTimeSlot = thisRunData.startTime.getTime()
+        const interval = options.interval
+        const now = Date.now()
+        const diff = now - thisTimeSlot
+        const increment = (((diff - (diff % interval)) / interval) + 1) * interval
+        const newTimestampMs = thisTimeSlot + increment
+        if (!(newTimestampMs > now)) { throw new AssertionError('Expect newTimestampMs is greater than now') }
+        nextRun = new Date(newTimestampMs)
+      }
+    } else {
+      throw new AssertionError('Not implemented case')
+    }
+    return nextRun
+  }
+
   #scheduleWithSuccessResult (taskReturnValue: R, startTime: Date, endTime: Date): void {
     // Determine next run time
     let nextRun: number | Date | null
@@ -222,25 +246,7 @@ export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
       } else if (typeof options === 'function') {
         nextRun = options(taskReturnValue, { startTime, endTime }, this.#context)
       } else if (options.type === 'FIXED_INTERVAL') {
-        const onPastTime = options.onPastTime ?? 'RUN_IMMEDIATELY'
-        if (onPastTime === 'RUN_IMMEDIATELY') {
-          nextRun = new Date(thisRunData.startTime.getTime() + options.interval)
-        } else if (onPastTime === 'NEXT_RUN_TIME') {
-          if (options.interval <= 1) {
-            nextRun = new Date()
-          } else {
-            const thisTimeSlot = thisRunData.startTime.getTime()
-            const interval = options.interval
-            const now = Date.now()
-            const diff = now - thisTimeSlot
-            const increment = (((diff - (diff % interval)) / interval) + 1) * interval
-            const newTimestampMs = thisTimeSlot + increment
-            if (!(newTimestampMs > now)) { throw new AssertionError('Expect newTimestampMs is greater than now') }
-            nextRun = new Date(newTimestampMs)
-          }
-        } else {
-          throw new AssertionError('Not implemented case')
-        }
+        nextRun = this.#determineFixedIntervalNextRun(thisRunData, options)
       } else if (options.type === 'RUN_END_TIME') {
         nextRun = new Date(endTime.getTime() + options.delay)
       } else {
