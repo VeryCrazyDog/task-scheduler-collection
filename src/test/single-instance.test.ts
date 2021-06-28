@@ -75,7 +75,7 @@ test('should attempt the specified number of times on error', async t => {
     }, {
       onError: {
         delay: 100,
-        attempt: 2
+        attempt: 3
       }
     })
     tt.is(runCount, 0)
@@ -86,7 +86,10 @@ test('should attempt the specified number of times on error', async t => {
     await delay(100)
     tt.is(runCount, 2)
     await delay(100)
-    tt.is(runCount, 2)
+    tt.is(runCount, 3)
+    await delay(100)
+    tt.is(runCount, 3)
+    await delay(100)
     scheduler.cancelNextRun()
   }, 3)
 })
@@ -196,7 +199,7 @@ test('can cancel next run when task is not running', async t => {
   }, 3)
 })
 
-test('can cancel next run when task is running', async t => {
+test('can cancel next run when task is running and will return succes', async t => {
   await tryUntil(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
@@ -205,6 +208,31 @@ test('can cancel next run when task is running', async t => {
     }, {
       onSuccess: {
         type: 'RUN_END_TIME',
+        delay: 0
+      }
+    })
+    scheduler.schedule(0)
+    tt.is(runCount, 0)
+    await delay(150)
+    tt.is(runCount, 1)
+    tt.true(scheduler.running)
+    scheduler.cancelNextRun()
+    await delay(100)
+    tt.is(runCount, 2)
+    await delay(100)
+    tt.is(runCount, 2)
+  }, 3)
+})
+
+test('can cancel next run when task is running and will return error', async t => {
+  await tryUntil(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(100)
+      runCount++
+      throw new Error('Mock error')
+    }, {
+      onError: {
         delay: 0
       }
     })
