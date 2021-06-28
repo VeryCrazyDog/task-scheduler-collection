@@ -1,44 +1,72 @@
-import test from 'ava'
+import test, { EitherMacro, ExecutionContext, TryResult } from 'ava'
 import { delay } from 'native-promise-util'
 
 import { SingleInstanceTaskScheduler } from '../single-instance'
 
+async function tryUntil<A extends any[], C> (
+  t: ExecutionContext<C>,
+  macro: EitherMacro<A, C>,
+  attempt: number,
+  ...rest: A
+): Promise<void> {
+  let attempted = 0
+  let tryResult: TryResult | undefined
+  do {
+    tryResult = await t.try(macro, ...rest)
+    attempted++
+    if (tryResult.passed) {
+      tryResult.commit()
+      break
+    } else if (attempted < attempt) {
+      tryResult.discard()
+    }
+  } while (attempted < attempt)
+  // Commit the last attempt
+  if (!tryResult?.passed) {
+    tryResult.commit()
+  }
+}
+
 test('should run one time task only once', async t => {
-  let runCount = 0
-  const scheduler = new SingleInstanceTaskScheduler(() => {
-    runCount++
-  })
-  t.is(runCount, 0)
-  scheduler.schedule(0)
-  t.is(runCount, 0)
-  await delay(100)
-  t.is(runCount, 1)
-  await delay(100)
-  t.is(runCount, 1)
-  scheduler.cancelNextRun()
+  await tryUntil(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(() => {
+      runCount++
+    })
+    tt.is(runCount, 0)
+    scheduler.schedule(0)
+    tt.is(runCount, 0)
+    await delay(100)
+    tt.is(runCount, 1)
+    await delay(100)
+    tt.is(runCount, 1)
+    scheduler.cancelNextRun()
+  }, 3)
 })
 
 test('should attempt the specified number of times', async t => {
-  let runCount = 0
-  const scheduler = new SingleInstanceTaskScheduler(() => {
-    runCount++
-    throw new Error('Mock error')
-  }, {
-    onError: {
-      delay: 100,
-      attempt: 2
-    }
-  })
-  t.is(runCount, 0)
-  scheduler.schedule(0)
-  t.is(runCount, 0)
-  await delay(50)
-  t.is(runCount, 1)
-  await delay(100)
-  t.is(runCount, 2)
-  await delay(100)
-  t.is(runCount, 2)
-  scheduler.cancelNextRun()
+  await tryUntil(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(() => {
+      runCount++
+      throw new Error('Mock error')
+    }, {
+      onError: {
+        delay: 100,
+        attempt: 2
+      }
+    })
+    tt.is(runCount, 0)
+    scheduler.schedule(0)
+    tt.is(runCount, 0)
+    await delay(50)
+    tt.is(runCount, 1)
+    await delay(100)
+    tt.is(runCount, 2)
+    await delay(100)
+    tt.is(runCount, 2)
+    scheduler.cancelNextRun()
+  }, 3)
 })
 
 // test('should produce correct delay when returning number in next run time evaluator', async t => {
@@ -84,83 +112,89 @@ test('should attempt the specified number of times', async t => {
 // })
 
 test('should return correct scheduled flag', async t => {
-  const scheduler = new SingleInstanceTaskScheduler(async () => {
-    await delay(50)
-  }, {
-    onSuccess: {
-      type: 'RUN_END_TIME',
-      delay: 100
-    }
-  })
-  t.is(scheduler.scheduled, false)
+  await tryUntil(t, async tt => {
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(50)
+    }, {
+      onSuccess: {
+        type: 'RUN_END_TIME',
+        delay: 100
+      }
+    })
+    tt.is(scheduler.scheduled, false)
 
-  scheduler.run().catch(() => {})
-  t.is(scheduler.scheduled, true)
-  await delay(100)
-  t.is(scheduler.scheduled, true)
+    scheduler.run().catch(() => {})
+    tt.is(scheduler.scheduled, true)
+    await delay(100)
+    tt.is(scheduler.scheduled, true)
 
-  scheduler.cancelNextRun()
-  t.is(scheduler.scheduled, false)
-  await delay(100)
-  t.is(scheduler.scheduled, false)
+    scheduler.cancelNextRun()
+    tt.is(scheduler.scheduled, false)
+    await delay(100)
+    tt.is(scheduler.scheduled, false)
 
-  scheduler.schedule(0)
-  t.is(scheduler.scheduled, true)
-  await delay(100)
-  t.is(scheduler.scheduled, true)
+    scheduler.schedule(0)
+    tt.is(scheduler.scheduled, true)
+    await delay(100)
+    tt.is(scheduler.scheduled, true)
 
-  scheduler.cancelNextRun()
-  t.is(scheduler.scheduled, false)
-  await delay(100)
-  t.is(scheduler.scheduled, false)
+    scheduler.cancelNextRun()
+    tt.is(scheduler.scheduled, false)
+    await delay(100)
+    tt.is(scheduler.scheduled, false)
+  }, 3)
 })
 
 test('can cancel next run when task is not running', async t => {
-  let runCount = 0
-  const scheduler = new SingleInstanceTaskScheduler(() => {
-    runCount++
-  }, {
-    onSuccess: {
-      type: 'RUN_END_TIME',
-      delay: 100
-    }
-  })
-  t.is(runCount, 0)
-  scheduler.schedule(0)
-  t.is(runCount, 0)
-  await delay(50)
-  t.is(runCount, 1)
-  await delay(100)
-  t.is(runCount, 2)
-  t.false(scheduler.running)
-  scheduler.cancelNextRun()
-  await delay(100)
-  t.is(runCount, 2)
-  await delay(100)
-  t.is(runCount, 2)
+  await tryUntil(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(() => {
+      runCount++
+    }, {
+      onSuccess: {
+        type: 'RUN_END_TIME',
+        delay: 100
+      }
+    })
+    tt.is(runCount, 0)
+    scheduler.schedule(0)
+    tt.is(runCount, 0)
+    await delay(50)
+    tt.is(runCount, 1)
+    await delay(100)
+    tt.is(runCount, 2)
+    tt.false(scheduler.running)
+    scheduler.cancelNextRun()
+    await delay(100)
+    tt.is(runCount, 2)
+    await delay(100)
+    tt.is(runCount, 2)
+  }, 3)
 })
 
 test('can cancel next run when task is running', async t => {
-  let runCount = 0
-  const scheduler = new SingleInstanceTaskScheduler(async () => {
+  await tryUntil(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(100)
+      runCount++
+    }, {
+      onSuccess: {
+        type: 'RUN_END_TIME',
+        delay: 0
+      }
+    })
+    scheduler.schedule(0)
+    tt.is(runCount, 0)
+    await delay(150)
+    tt.is(runCount, 1)
+    tt.true(scheduler.running)
+    scheduler.cancelNextRun()
     await delay(100)
-    runCount++
-  }, {
-    onSuccess: {
-      type: 'RUN_END_TIME',
-      delay: 0
-    }
-  })
-  scheduler.schedule(0)
-  t.is(runCount, 0)
-  await delay(150)
-  t.is(runCount, 1)
-  t.true(scheduler.running)
-  scheduler.cancelNextRun()
-  await delay(100)
-  t.is(runCount, 2)
-  await delay(100)
-  t.is(runCount, 2)
+    tt.is(runCount, 2)
+    await delay(100)
+    tt.is(runCount, 2)
+  }, 3)
 })
 
 // test('should pass correct arguments to nextRunTimeEvaluator', async t => {
@@ -215,45 +249,47 @@ test('can cancel next run when task is running', async t => {
 // })
 
 test('should not run multiple tasks concurrently', async t => {
-  let runCount = 0
-  let isRunning = false
-  const scheduler = new SingleInstanceTaskScheduler(async () => {
-    t.false(isRunning)
-    isRunning = true
-    await delay(200)
-    runCount++
-    isRunning = false
-  }, {
-    onSuccess: {
-      type: 'RUN_END_TIME',
-      delay: 0
-    }
-  })
-  t.is(runCount, 0)
-  scheduler.schedule(0)
-  t.is(runCount, 0)
-  await delay(50)
-  // 50ms passed
-  t.is(runCount, 0)
-  await delay(100)
-  // 150ms passed
-  t.is(runCount, 0)
-  await delay(100)
-  // 50ms + 200ms passed
-  t.is(runCount, 1)
-  await delay(100)
-  // 150ms + 200ms passed
-  t.is(runCount, 1)
-  await delay(100)
-  // 50ms + 200ms x 2 passed
-  t.is(runCount, 2)
-  await delay(100)
-  // 150ms + 200ms x 2 passed
-  t.is(runCount, 2)
-  await delay(100)
-  // 50ms + 200ms x 3 passed
-  t.is(runCount, 3)
-  scheduler.cancelNextRun()
+  await tryUntil(t, async tt => {
+    let runCount = 0
+    let isRunning = false
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      tt.false(isRunning)
+      isRunning = true
+      await delay(200)
+      runCount++
+      isRunning = false
+    }, {
+      onSuccess: {
+        type: 'RUN_END_TIME',
+        delay: 0
+      }
+    })
+    tt.is(runCount, 0)
+    scheduler.schedule(0)
+    tt.is(runCount, 0)
+    await delay(50)
+    // 50ms passed
+    tt.is(runCount, 0)
+    await delay(100)
+    // 150ms passed
+    tt.is(runCount, 0)
+    await delay(100)
+    // 50ms + 200ms passed
+    tt.is(runCount, 1)
+    await delay(100)
+    // 150ms + 200ms passed
+    tt.is(runCount, 1)
+    await delay(100)
+    // 50ms + 200ms x 2 passed
+    tt.is(runCount, 2)
+    await delay(100)
+    // 150ms + 200ms x 2 passed
+    tt.is(runCount, 2)
+    await delay(100)
+    // 50ms + 200ms x 3 passed
+    tt.is(runCount, 3)
+    scheduler.cancelNextRun()
+  }, 3)
 })
 
 // test('can change next run time options', async t => {
