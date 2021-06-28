@@ -119,7 +119,7 @@ class AssertionError extends Error {
  *
  * Stability: 2 - Stable.
  */
-export class SingleInstanceTaskScheduler<C = undefined, R = unknown> {
+export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
   readonly #task: Task<C, R>
   readonly #options: Required<SingleInstanceTaskSchedulerOptions<C, R>>
   readonly #context: C
