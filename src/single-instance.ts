@@ -270,32 +270,37 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
 
   #scheduleWithErrorResult (caughtValue: any, startTime: Date, endTime: Date): void {
     const thisRunData = this.#nextRunData
-    if (thisRunData === null) { throw new AssertionError('Expect thisRunData is not null') }
-    if ((thisRunData.attemptNumber === 1) !== (thisRunData.firstAttempt === undefined)) {
-      throw new AssertionError('Expect firstAttempt is defined when attemptNumber is larger than 1')
-    }
-    const options = this.#options.onError
     // Determine next run time
     let nextRun: number | Date | null
-    if (options === null) {
-      nextRun = null
-    } else if (typeof options === 'function') {
-      nextRun = options(caughtValue, {
-        attemptNumber: thisRunData.attemptNumber,
-        startTime,
-        endTime,
-        firstAttemptStartTime: thisRunData.firstAttempt?.startTime ?? startTime,
-        firstAttemptEndTime: thisRunData.firstAttempt?.endTime ?? endTime
-      }, this.#context)
-    } else if (thisRunData.attemptNumber >= (options.attempt ?? Infinity)) {
+    if (thisRunData === null) {
+      // `cancalNextRun()` is called while task is running
       nextRun = null
     } else {
-      nextRun = new Date(endTime.getTime() + options.delay)
+      if ((thisRunData.attemptNumber === 1) !== (thisRunData.firstAttempt === undefined)) {
+        throw new AssertionError('Expect firstAttempt is defined when attemptNumber is larger than 1')
+      }
+      const options = this.#options.onError
+      if (options === null) {
+        nextRun = null
+      } else if (typeof options === 'function') {
+        nextRun = options(caughtValue, {
+          attemptNumber: thisRunData.attemptNumber,
+          startTime,
+          endTime,
+          firstAttemptStartTime: thisRunData.firstAttempt?.startTime ?? startTime,
+          firstAttemptEndTime: thisRunData.firstAttempt?.endTime ?? endTime
+        }, this.#context)
+      } else if (thisRunData.attemptNumber >= (options.attempt ?? Infinity)) {
+        nextRun = null
+      } else {
+        nextRun = new Date(endTime.getTime() + options.delay)
+      }
     }
     // Use next run time to set next run data
     if (nextRun === null) {
       this.#nextRunData = null
     } else {
+      if (thisRunData === null) { throw new AssertionError('Expect thisRunData is not null') }
       if (typeof nextRun === 'number') {
         nextRun = new Date(Date.now() + nextRun)
       }
