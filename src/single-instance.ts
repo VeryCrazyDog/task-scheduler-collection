@@ -314,6 +314,8 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
           startTime,
           endTime
         }
+      } else {
+        this.#nextRunData.firstAttempt = thisRunData.firstAttempt
       }
     }
   }
