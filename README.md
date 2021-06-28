@@ -10,9 +10,8 @@ folder.
 
 
 ## Available schedulers
-- SingleInstanceTaskScheduler: A task scheduler which have at most 1 running task at
-  any time. Stability: *1 - Experimental*.
-
+- SingleInstanceTaskScheduler: A task scheduler which have at most one running task at
+  any time. Stability: *2 - Stable*.
 
 ## License
 This module is licensed under the [MIT License](./LICENSE).
