@@ -330,45 +330,38 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
     }
 
     if (this.#taskRunningPromise !== null) { return }
-    let isFinallyExecuted = false
     this.#taskRunningPromise = (async () => {
+      let taskResult: ExecutionResult
+      const startTime = new Date()
       try {
-        let taskResult: ExecutionResult
-        const startTime = new Date()
-        try {
-          taskResult = {
-            success: true,
-            returnValue: await this.#task(this.#context)
-          }
-        } catch (error) {
-          taskResult = {
-            success: false,
-            caughtValue: error
-          }
+        taskResult = {
+          success: true,
+          returnValue: await this.#task(this.#context)
         }
-        const endTime = new Date()
-        if (!taskResult.success) {
-          this.#scheduleWithErrorResult(taskResult.caughtValue, startTime, endTime)
-          throw taskResult.caughtValue
-        } else {
-          this.#scheduleWithSuccessResult(taskResult.returnValue, startTime, endTime)
+      } catch (error) {
+        taskResult = {
+          success: false,
+          caughtValue: error
         }
-        return taskResult.returnValue
-      } finally {
-        this.#taskRunningPromise = null
-        isFinallyExecuted = true
       }
+      const endTime = new Date()
+      if (!taskResult.success) {
+        this.#scheduleWithErrorResult(taskResult.caughtValue, startTime, endTime)
+        throw taskResult.caughtValue
+      } else {
+        this.#scheduleWithSuccessResult(taskResult.returnValue, startTime, endTime)
+      }
+      return taskResult.returnValue
     })()
-    // Avoid unhandled rejection
-    this.#taskRunningPromise.catch(error => {
+
+    this.#taskRunningPromise.finally(() => {
+      this.#taskRunningPromise = null
+      // Avoid unhandled rejection by catching
+    }).catch(error => {
       if (error instanceof AssertionError) {
         throw error
       }
     })
-    // In case the task returns immediately in the current iteration of the Node.js event loop
-    if (isFinallyExecuted) {
-      this.#taskRunningPromise = null
-    }
   }
 
   /**
