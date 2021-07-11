@@ -3,7 +3,7 @@ import { delay } from 'native-promise-util'
 
 import { SingleInstanceTaskScheduler } from '../single-instance'
 
-async function tryUntil<A extends any[], C> (
+async function tryUntilSuccess<A extends any[], C> (
   t: ExecutionContext<C>,
   macro: EitherMacro<A, C>,
   attempt: number,
@@ -28,7 +28,7 @@ async function tryUntil<A extends any[], C> (
 }
 
 test('should run one time task only once', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -45,7 +45,7 @@ test('should run one time task only once', async t => {
 })
 
 test('should produce correct delay when returning number in OnSuccessNextRunEvaluator', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(1)
@@ -67,7 +67,7 @@ test('should produce correct delay when returning number in OnSuccessNextRunEval
 })
 
 test('should attempt the specified number of times on error', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -95,7 +95,7 @@ test('should attempt the specified number of times on error', async t => {
 })
 
 test('should produce correct delay when returning number in OnErrorNextRunEvaluator', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(1)
@@ -139,7 +139,7 @@ test('should produce correct delay when returning number in OnErrorNextRunEvalua
 // })
 
 test('should return correct scheduled flag', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(50)
     }, {
@@ -173,7 +173,7 @@ test('should return correct scheduled flag', async t => {
 })
 
 test('can cancel next run when task is not running', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -200,7 +200,7 @@ test('can cancel next run when task is not running', async t => {
 })
 
 test('can cancel next run when task is running and will return succes', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -225,7 +225,7 @@ test('can cancel next run when task is running and will return succes', async t 
 })
 
 test('can cancel next run when task is running and will return error', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -301,7 +301,7 @@ test('can cancel next run when task is running and will return error', async t =
 // })
 
 test('should not run multiple tasks concurrently', async t => {
-  await tryUntil(t, async tt => {
+  await tryUntilSuccess(t, async tt => {
     let runCount = 0
     let isRunning = false
     const scheduler = new SingleInstanceTaskScheduler(async () => {
