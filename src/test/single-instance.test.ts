@@ -66,6 +66,26 @@ test('should produce correct delay when returning number in OnSuccessNextRunEval
   }, 3)
 })
 
+test('should produce correct delay when returning Date in OnSuccessNextRunEvaluator', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    runCount++
+  }, {
+    onSuccess: () => new Date(Date.now() + 100)
+  })
+  t.is(runCount, 0)
+  scheduler.run()
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  await delay(100)
+  t.is(runCount, 3)
+  scheduler.cancelNextRun()
+})
+
 test('should attempt the specified number of times on error', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
@@ -102,7 +122,7 @@ test('should produce correct delay when returning number in OnErrorNextRunEvalua
       runCount++
       throw new Error('Mock error')
     }, {
-      onError: () => 100
+      onError: () => new Date(Date.now() + 100)
     })
     tt.is(runCount, 0)
     scheduler.run().catch(() => {})
@@ -117,26 +137,28 @@ test('should produce correct delay when returning number in OnErrorNextRunEvalua
   }, 3)
 })
 
-// test('should produce correct delay when returning Date in next run time evaluator', async t => {
-//   let runCount = 0
-//   const scheduler = new SingleInstanceTaskScheduler(async () => {
-//     await delay(1)
-//     runCount++
-//   }, () => ({
-//     startDelayOrTime: new Date(Date.now() + 100),
-//     isRetry: false
-//   }))
-//   t.is(runCount, 0)
-//   scheduler.run()
-//   t.is(runCount, 0)
-//   await delay(50)
-//   t.is(runCount, 1)
-//   await delay(100)
-//   t.is(runCount, 2)
-//   await delay(100)
-//   t.is(runCount, 3)
-//   scheduler.cancelNextRun()
-// })
+test('should produce correct delay when returning Date in OnErrorNextRunEvaluator', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(1)
+      runCount++
+      throw new Error('Mock error')
+    }, {
+      onError: () => 100
+    })
+    tt.is(runCount, 0)
+    scheduler.run().catch(() => {})
+    tt.is(runCount, 0)
+    await delay(50)
+    tt.is(runCount, 1)
+    await delay(100)
+    tt.is(runCount, 2)
+    await delay(100)
+    tt.is(runCount, 3)
+    scheduler.cancelNextRun()
+  }, 3)
+})
 
 test('should return correct scheduled flag', async t => {
   await tryUntilSuccess(t, async tt => {
