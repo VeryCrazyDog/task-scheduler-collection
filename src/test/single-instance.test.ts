@@ -44,6 +44,115 @@ test('should run one time task only once', async t => {
   }, 3)
 })
 
+test('should produce correct delay with fixed interval', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(100)
+      runCount++
+    }, {
+      onSuccess: {
+        type: 'FIXED_INTERVAL',
+        interval: 200
+      }
+    })
+    tt.false(scheduler.running)
+    tt.is(runCount, 0)
+    scheduler.run().catch(() => {})
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(50) // 50
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(100) // 150
+    tt.false(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 250
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 350
+    tt.false(scheduler.running)
+    tt.is(runCount, 2)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
+test('should run immediately with fixed interval when task run too long', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(200)
+      runCount++
+    }, {
+      onSuccess: {
+        type: 'FIXED_INTERVAL',
+        interval: 100
+      }
+    })
+    tt.false(scheduler.running)
+    tt.is(runCount, 0)
+    scheduler.run().catch(() => {})
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(50) // 50
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(100) // 150
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(100) // 250
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 350
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 450
+    tt.true(scheduler.running)
+    tt.is(runCount, 2)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
+test('should run at next run time with fixed interval when task run too long', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(300)
+      runCount++
+    }, {
+      onSuccess: {
+        type: 'FIXED_INTERVAL',
+        interval: 200,
+        onPastTime: 'NEXT_RUN_TIME'
+      }
+    })
+    tt.false(scheduler.running)
+    tt.is(runCount, 0)
+    scheduler.run().catch(() => {})
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(50) // 50
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(200) // 250
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(100) // 350
+    tt.false(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 450
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(200) // 650
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 750
+    tt.false(scheduler.running)
+    tt.is(runCount, 2)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
 test('should produce correct delay when returning number in OnSuccessNextRunEvaluator', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
@@ -75,7 +184,7 @@ test('should produce correct delay when returning Date in OnSuccessNextRunEvalua
     onSuccess: () => new Date(Date.now() + 100)
   })
   t.is(runCount, 0)
-  scheduler.run()
+  scheduler.run().catch(() => {})
   t.is(runCount, 0)
   await delay(50)
   t.is(runCount, 1)
