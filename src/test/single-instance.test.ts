@@ -153,14 +153,101 @@ test('should run at next run time with fixed interval when task run too long', a
   }, 3)
 })
 
+test('should produce correct delay with run end time', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(100)
+      runCount++
+    }, {
+      onSuccess: {
+        type: 'RUN_END_TIME',
+        delay: 200
+      }
+    })
+    tt.false(scheduler.running)
+    tt.is(runCount, 0)
+    scheduler.run().catch(() => {})
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(50) // 50
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(100) // 150
+    tt.false(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 250
+    tt.false(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 350
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 450
+    tt.false(scheduler.running)
+    tt.is(runCount, 2)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
+test('should pass correct arguments to OnSuccessNextRunEvaluator', async t => {
+  const rtv = {}
+  const ctx = {}
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(100)
+    return rtv
+  }, {
+    onSuccess: (returnValue, meta, context) => {
+      t.is(returnValue, rtv)
+      t.true(meta.endTime.getTime() - meta.startTime.getTime() >= 100)
+      t.is(context, ctx)
+      return null
+    }
+  }, ctx)
+  await scheduler.run()
+  scheduler.cancelNextRun()
+})
+
 test('should produce correct delay when returning number in OnSuccessNextRunEvaluator', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(100)
+      runCount++
+    }, {
+      onSuccess: () => 200
+    })
+    tt.false(scheduler.running)
+    tt.is(runCount, 0)
+    scheduler.run().catch(() => {})
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(50) // 50
+    tt.true(scheduler.running)
+    tt.is(runCount, 0)
+    await delay(100) // 150
+    tt.false(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 250
+    tt.false(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 350
+    tt.true(scheduler.running)
+    tt.is(runCount, 1)
+    await delay(100) // 450
+    tt.false(scheduler.running)
+    tt.is(runCount, 2)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
+test('should produce correct delay when returning Date in OnSuccessNextRunEvaluator', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(1)
       runCount++
     }, {
-      onSuccess: () => 100
+      onSuccess: () => new Date(Date.now() + 100)
     })
     tt.is(runCount, 0)
     scheduler.run().catch(() => {})
@@ -173,26 +260,6 @@ test('should produce correct delay when returning number in OnSuccessNextRunEval
     tt.is(runCount, 3)
     scheduler.cancelNextRun()
   }, 3)
-})
-
-test('should produce correct delay when returning Date in OnSuccessNextRunEvaluator', async t => {
-  let runCount = 0
-  const scheduler = new SingleInstanceTaskScheduler(async () => {
-    await delay(1)
-    runCount++
-  }, {
-    onSuccess: () => new Date(Date.now() + 100)
-  })
-  t.is(runCount, 0)
-  scheduler.run().catch(() => {})
-  t.is(runCount, 0)
-  await delay(50)
-  t.is(runCount, 1)
-  await delay(100)
-  t.is(runCount, 2)
-  await delay(100)
-  t.is(runCount, 3)
-  scheduler.cancelNextRun()
 })
 
 test('should attempt the specified number of times on error', async t => {
@@ -219,6 +286,42 @@ test('should attempt the specified number of times on error', async t => {
     await delay(100)
     tt.is(runCount, 3)
     await delay(100)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
+test('should pass correct arguments to OnErrorNextRunEvaluator', async t => {
+  await tryUntilSuccess(t, async tt => {
+    const err = new Error('Mock error')
+    const ctx = {}
+    let nextRunEvaluatorRunCount = 0
+    let firstAttemptStartTimestamp: number | null
+    let firstAttemptEndTimestamp: number | null
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      await delay(100)
+      throw err
+    }, {
+      onError: (caughtValue, meta, context) => {
+        nextRunEvaluatorRunCount++
+        tt.is(caughtValue, err)
+        tt.is(meta.attemptNumber, nextRunEvaluatorRunCount)
+        tt.true(meta.endTime.getTime() - meta.startTime.getTime() >= 100)
+        if (nextRunEvaluatorRunCount === 1) {
+          firstAttemptStartTimestamp = meta.firstAttemptStartTime.getTime()
+          firstAttemptEndTimestamp = meta.firstAttemptEndTime.getTime()
+          tt.is(meta.startTime.getTime(), firstAttemptStartTimestamp)
+          tt.is(meta.endTime.getTime(), firstAttemptEndTimestamp)
+        } else {
+          tt.not(meta.startTime.getTime(), firstAttemptStartTimestamp)
+          tt.not(meta.endTime.getTime(), firstAttemptEndTimestamp)
+        }
+        tt.is(context, ctx)
+        return 0
+      }
+    }, ctx)
+    scheduler.run().catch(() => {})
+    await delay(350)
+    tt.is(nextRunEvaluatorRunCount, 3)
     scheduler.cancelNextRun()
   }, 3)
 })
@@ -267,6 +370,61 @@ test('should produce correct delay when returning Date in OnErrorNextRunEvaluato
     tt.is(runCount, 3)
     scheduler.cancelNextRun()
   }, 3)
+})
+
+test.failing('should reset metadata argument passed to OnErrorNextRunEvaluator after a success run', async t => {
+  let taskRunCount = 0
+  let nextRunEvaluatorRunCount = 0
+  let firstAttemptStartTimestamp: number | null
+  let firstAttemptEndTimestamp: number | null
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(100)
+    taskRunCount++
+    if (taskRunCount !== 3) {
+      throw new Error('Mock error')
+    }
+  }, {
+    onSuccess: () => {
+      t.is(taskRunCount, 3)
+      t.is(nextRunEvaluatorRunCount, 2)
+      firstAttemptStartTimestamp = null
+      firstAttemptEndTimestamp = null
+      return 0
+    },
+    onError: (_caughtValue, meta) => {
+      nextRunEvaluatorRunCount++
+      if (nextRunEvaluatorRunCount < 3) {
+        t.is(meta.attemptNumber, nextRunEvaluatorRunCount)
+        if (nextRunEvaluatorRunCount === 1) {
+          firstAttemptStartTimestamp = meta.firstAttemptStartTime.getTime()
+          firstAttemptEndTimestamp = meta.firstAttemptEndTime.getTime()
+          t.is(meta.startTime.getTime(), firstAttemptStartTimestamp)
+          t.is(meta.endTime.getTime(), firstAttemptEndTimestamp)
+        } else {
+          t.not(meta.startTime.getTime(), firstAttemptStartTimestamp)
+          t.not(meta.endTime.getTime(), firstAttemptEndTimestamp)
+        }
+      } else {
+        t.is(meta.attemptNumber, nextRunEvaluatorRunCount - 2)
+        if (nextRunEvaluatorRunCount === 3) {
+          t.not(meta.firstAttemptStartTime.getTime(), firstAttemptStartTimestamp)
+          t.not(meta.firstAttemptEndTime.getTime(), firstAttemptEndTimestamp)
+          firstAttemptStartTimestamp = meta.firstAttemptStartTime.getTime()
+          firstAttemptEndTimestamp = meta.firstAttemptEndTime.getTime()
+          t.is(meta.startTime.getTime(), firstAttemptStartTimestamp)
+          t.is(meta.endTime.getTime(), firstAttemptEndTimestamp)
+        } else {
+          t.not(meta.startTime.getTime(), firstAttemptStartTimestamp)
+          t.not(meta.endTime.getTime(), firstAttemptEndTimestamp)
+        }
+      }
+      return 0
+    }
+  })
+  scheduler.run().catch(() => {})
+  await delay(550)
+  t.is(nextRunEvaluatorRunCount, 5)
+  scheduler.cancelNextRun()
 })
 
 test('should return correct scheduled flag', async t => {
@@ -379,57 +537,6 @@ test('can cancel next run when task is running and will return error', async t =
     tt.is(runCount, 2)
   }, 3)
 })
-
-// test('should pass correct arguments to nextRunTimeEvaluator', async t => {
-//   const context = {
-//     runCount: 0
-//   }
-//   let evaluatorArgs: any[] = []
-//   const scheduler = new SingleInstanceTaskScheduler(ctx => {
-//     ctx.runCount++
-//     return ctx.runCount
-//   }, (...args) => {
-//     evaluatorArgs = args
-//     return {
-//       startDelayOrTime: 100,
-//       isRetry: true
-//     }
-//   }, context)
-//   scheduler.schedule(0)
-//   t.deepEqual(evaluatorArgs, [])
-//   await delay(50)
-//   const firstAttemptStartTime = evaluatorArgs?.[1]?.firstAttemptStartTime
-//   const firstAttemptEndTime = evaluatorArgs?.[1]?.firstAttemptEndTime
-//   t.deepEqual(evaluatorArgs, [{
-//     type: 'SUCCESS',
-//     returnValue: 1
-//   }, {
-//     firstAttemptStartTime: firstAttemptStartTime,
-//     firstAttemptEndTime: firstAttemptEndTime,
-//     attemptNumber: 1,
-//     startTime: firstAttemptStartTime,
-//     endTime: firstAttemptEndTime
-//   }, {
-//     runCount: 1
-//   }])
-//   await delay(100)
-//   const executionTime = evaluatorArgs?.[1]?.endTime - evaluatorArgs?.[1]?.startTime
-//   t.is(typeof executionTime, 'number')
-//   t.true(executionTime < 100)
-//   t.deepEqual(evaluatorArgs[0], {
-//     type: 'SUCCESS',
-//     returnValue: 2
-//   })
-//   t.like(evaluatorArgs[1], {
-//     firstAttemptStartTime: firstAttemptStartTime,
-//     firstAttemptEndTime: firstAttemptEndTime,
-//     attemptNumber: 2
-//   })
-//   t.deepEqual(evaluatorArgs[2], {
-//     runCount: 2
-//   })
-//   scheduler.cancelNextRun()
-// })
 
 test('should not run multiple tasks concurrently', async t => {
   await tryUntilSuccess(t, async tt => {
