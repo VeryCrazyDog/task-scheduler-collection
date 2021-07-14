@@ -77,16 +77,20 @@ test('should produce correct delay with fixed interval', async t => {
     scheduler.run().catch(() => {})
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(50) // 50
+    await delay(50)
+    // 50ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(100) // 150
+    await delay(100)
+    // 150ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 250
+    await delay(100)
+    // 250ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 350
+    await delay(100)
+    // 350ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 2)
     scheduler.cancelNextRun()
@@ -110,19 +114,24 @@ test('should run immediately with fixed interval when task run too long', async 
     scheduler.run().catch(() => {})
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(50) // 50
+    await delay(50)
+    // 50ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(100) // 150
+    await delay(100)
+    // 150ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(100) // 250
+    await delay(100)
+    // 250ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 350
+    await delay(100)
+    // 350ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 450
+    await delay(100)
+    // 450ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 2)
     scheduler.cancelNextRun()
@@ -147,22 +156,28 @@ test('should run at next run time with fixed interval when task run too long', a
     scheduler.run().catch(() => {})
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(50) // 50
+    await delay(50)
+    // 50ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(200) // 250
+    await delay(200)
+    // 250ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(100) // 350
+    await delay(100)
+    // 350ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 450
+    await delay(100)
+    // 450ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(200) // 650
+    await delay(200)
+    // 650ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 750
+    await delay(100)
+    // 750ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 2)
     scheduler.cancelNextRun()
@@ -186,19 +201,24 @@ test('should produce correct delay with run end time', async t => {
     scheduler.run().catch(() => {})
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(50) // 50
+    await delay(50)
+    // 50ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(100) // 150
+    await delay(100)
+    // 150ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 250
+    await delay(100)
+    // 250ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 350
+    await delay(100)
+    // 350ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 450
+    await delay(100)
+    // 450ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 2)
     scheduler.cancelNextRun()
@@ -237,19 +257,24 @@ test('should produce correct delay when returning number in OnSuccessNextRunEval
     scheduler.run().catch(() => {})
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(50) // 50
+    await delay(50)
+    // 50ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 0)
-    await delay(100) // 150
+    await delay(100)
+    // 150ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 250
+    await delay(100)
+    // 250ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 350
+    await delay(100)
+    // 350ms passed
     tt.true(scheduler.running)
     tt.is(runCount, 1)
-    await delay(100) // 450
+    await delay(100)
+    // 450ms passed
     tt.false(scheduler.running)
     tt.is(runCount, 2)
     scheduler.cancelNextRun()
@@ -510,7 +535,7 @@ test('can cancel next run when task is not running', async t => {
   }, 3)
 })
 
-test('can cancel next run when task is running and will return succes', async t => {
+test('can cancel next run when task is running and task will return succes', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
@@ -535,7 +560,7 @@ test('can cancel next run when task is running and will return succes', async t 
   }, 3)
 })
 
-test('can cancel next run when task is running and will return error', async t => {
+test('can cancel next run when task is running and task will return error', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
