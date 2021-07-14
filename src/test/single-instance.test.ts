@@ -508,6 +508,22 @@ test('should return correct scheduled flag', async t => {
   }, 3)
 })
 
+test.failing('can schedule task to run as specified start time', async t => {
+  await tryUntilSuccess(t, async tt => {
+    let runCount = 0
+    const scheduler = new SingleInstanceTaskScheduler(() => {
+      runCount++
+    })
+    scheduler.schedule(200)
+    tt.is(runCount, 0)
+    await delay(150)
+    tt.is(runCount, 0)
+    await delay(100)
+    tt.is(runCount, 1)
+    scheduler.cancelNextRun()
+  }, 3)
+})
+
 test('can cancel next run when task is not running', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
@@ -583,6 +599,27 @@ test('can cancel next run when task is running and task will return error', asyn
     await delay(100)
     tt.is(runCount, 2)
   }, 3)
+})
+
+test('can run task immediately', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(() => {
+    runCount++
+  })
+  scheduler.run().catch(() => {})
+  t.is(runCount, 1)
+})
+
+test('can run task and wait until finished', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(100)
+    runCount++
+    return 'Finished'
+  })
+  const rtv = await scheduler.run()
+  t.is(runCount, 1)
+  t.is(rtv, 'Finished')
 })
 
 test('should not run multiple tasks concurrently', async t => {
