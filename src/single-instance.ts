@@ -193,7 +193,7 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
     this.cancelNextRun()
     this.#nextRunData = {
       startTime,
-      timer: setTimeout(this.#runTask.bind(this), startTime.getDate() - Date.now()),
+      timer: setTimeout(this.#runTask.bind(this), startTime.getTime() - Date.now()),
       attemptNumber: prevAttemptNumber ?? 1
     }
   }

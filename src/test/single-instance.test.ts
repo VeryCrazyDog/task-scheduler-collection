@@ -508,7 +508,7 @@ test('should return correct scheduled flag', async t => {
   }, 3)
 })
 
-test.failing('can schedule task to run as specified start time', async t => {
+test('can schedule task to run as specified start time', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
@@ -516,9 +516,9 @@ test.failing('can schedule task to run as specified start time', async t => {
     })
     scheduler.schedule(200)
     tt.is(runCount, 0)
-    await delay(150)
-    tt.is(runCount, 0)
     await delay(100)
+    tt.is(runCount, 0)
+    await delay(200)
     tt.is(runCount, 1)
     scheduler.cancelNextRun()
   }, 3)
