@@ -16,6 +16,12 @@
 	},
 	"overrides": [
 		{
+			"files": [ "src/test/**/*.test.ts" ],
+			"rules": {
+				"@typescript-eslint/no-non-null-assertion": "off"
+			}
+		},
+		{
 			"files": [ "example/*.js" ],
 			"rules": {
 				"no-console": "off"

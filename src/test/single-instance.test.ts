@@ -3,6 +3,21 @@ import { delay } from 'native-promise-util'
 
 import { SingleInstanceTaskScheduler } from '../single-instance'
 
+// Private functions
+function buildDeferred (): {
+  promise: Promise<void>
+  resolve: () => void
+} {
+  let resolveFn: () => void
+  const promise = new Promise<void>(resolve => {
+    resolveFn = resolve
+  })
+  return {
+    promise,
+    resolve: resolveFn!
+  }
+}
+
 async function tryUntilSuccess<A extends any[], C> (
   t: ExecutionContext<C>,
   macro: EitherMacro<A, C>,
@@ -27,6 +42,7 @@ async function tryUntilSuccess<A extends any[], C> (
   }
 }
 
+// Test cases
 test('should run one time task only once', async t => {
   await tryUntilSuccess(t, async tt => {
     let runCount = 0
@@ -291,39 +307,41 @@ test('should attempt the specified number of times on error', async t => {
 })
 
 test('should pass correct arguments to OnErrorNextRunEvaluator', async t => {
-  await tryUntilSuccess(t, async tt => {
-    const err = new Error('Mock error')
-    const ctx = {}
-    let nextRunEvaluatorRunCount = 0
-    let firstAttemptStartTimestamp: number | null
-    let firstAttemptEndTimestamp: number | null
-    const scheduler = new SingleInstanceTaskScheduler(async () => {
-      await delay(100)
-      throw err
-    }, {
-      onError: (caughtValue, meta, context) => {
-        nextRunEvaluatorRunCount++
-        tt.is(caughtValue, err)
-        tt.is(meta.attemptNumber, nextRunEvaluatorRunCount)
-        tt.true(meta.endTime.getTime() - meta.startTime.getTime() >= 100)
-        if (nextRunEvaluatorRunCount === 1) {
-          firstAttemptStartTimestamp = meta.firstAttemptStartTime.getTime()
-          firstAttemptEndTimestamp = meta.firstAttemptEndTime.getTime()
-          tt.is(meta.startTime.getTime(), firstAttemptStartTimestamp)
-          tt.is(meta.endTime.getTime(), firstAttemptEndTimestamp)
-        } else {
-          tt.not(meta.startTime.getTime(), firstAttemptStartTimestamp)
-          tt.not(meta.endTime.getTime(), firstAttemptEndTimestamp)
-        }
-        tt.is(context, ctx)
-        return 0
+  const err = new Error('Mock error')
+  const ctx = {}
+  let nextRunEvaluatorRunCount = 0
+  let firstAttemptStartTimestamp: number | null
+  let firstAttemptEndTimestamp: number | null
+  const deferred = buildDeferred()
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(100)
+    throw err
+  }, {
+    onError: (caughtValue, meta, context) => {
+      nextRunEvaluatorRunCount++
+      t.is(caughtValue, err)
+      t.is(meta.attemptNumber, nextRunEvaluatorRunCount)
+      t.true(meta.endTime.getTime() - meta.startTime.getTime() >= 100)
+      if (nextRunEvaluatorRunCount === 1) {
+        firstAttemptStartTimestamp = meta.firstAttemptStartTime.getTime()
+        firstAttemptEndTimestamp = meta.firstAttemptEndTime.getTime()
+        t.is(meta.startTime.getTime(), firstAttemptStartTimestamp)
+        t.is(meta.endTime.getTime(), firstAttemptEndTimestamp)
+      } else {
+        t.not(meta.startTime.getTime(), firstAttemptStartTimestamp)
+        t.not(meta.endTime.getTime(), firstAttemptEndTimestamp)
       }
-    }, ctx)
-    scheduler.run().catch(() => {})
-    await delay(350)
-    tt.is(nextRunEvaluatorRunCount, 3)
-    scheduler.cancelNextRun()
-  }, 3)
+      t.is(context, ctx)
+      if (nextRunEvaluatorRunCount === 3) {
+        deferred.resolve()
+      }
+      return 0
+    }
+  }, ctx)
+  scheduler.run().catch(() => {})
+  await deferred.promise
+  t.is(nextRunEvaluatorRunCount, 3)
+  scheduler.cancelNextRun()
 })
 
 test('should produce correct delay when returning number in OnErrorNextRunEvaluator', async t => {
@@ -372,11 +390,12 @@ test('should produce correct delay when returning Date in OnErrorNextRunEvaluato
   }, 3)
 })
 
-test.failing('should reset metadata argument passed to OnErrorNextRunEvaluator after a success run', async t => {
+test('should reset metadata argument passed to OnErrorNextRunEvaluator after a success run', async t => {
   let taskRunCount = 0
   let nextRunEvaluatorRunCount = 0
   let firstAttemptStartTimestamp: number | null
   let firstAttemptEndTimestamp: number | null
+  const deferred = buildDeferred()
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(100)
     taskRunCount++
@@ -418,11 +437,14 @@ test.failing('should reset metadata argument passed to OnErrorNextRunEvaluator a
           t.not(meta.endTime.getTime(), firstAttemptEndTimestamp)
         }
       }
+      if (nextRunEvaluatorRunCount === 5) {
+        deferred.resolve()
+      }
       return 0
     }
   })
   scheduler.run().catch(() => {})
-  await delay(550)
+  await deferred.promise
   t.is(nextRunEvaluatorRunCount, 5)
   scheduler.cancelNextRun()
 })
