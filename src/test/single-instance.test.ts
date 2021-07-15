@@ -18,7 +18,7 @@ function buildDeferred (): {
   }
 }
 
-async function tryUntilSuccess<A extends any[], C> (
+async function tryUntilPass<A extends any[], C> (
   t: ExecutionContext<C>,
   macro: EitherMacro<A, C>,
   attempt: number,
@@ -44,7 +44,7 @@ async function tryUntilSuccess<A extends any[], C> (
 
 // Test cases
 test('should run one time task only once', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -61,7 +61,7 @@ test('should run one time task only once', async t => {
 })
 
 test('should produce correct delay with fixed interval', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -98,7 +98,7 @@ test('should produce correct delay with fixed interval', async t => {
 })
 
 test('should run immediately with fixed interval when task run too long', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(200)
@@ -139,7 +139,7 @@ test('should run immediately with fixed interval when task run too long', async 
 })
 
 test('should run at next run time with fixed interval when task run too long', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(300)
@@ -185,7 +185,7 @@ test('should run at next run time with fixed interval when task run too long', a
 })
 
 test('should produce correct delay with run end time', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -244,7 +244,7 @@ test('should pass correct arguments to OnSuccessNextRunEvaluator', async t => {
 })
 
 test('should produce correct delay when returning number in OnSuccessNextRunEvaluator', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -282,7 +282,7 @@ test('should produce correct delay when returning number in OnSuccessNextRunEval
 })
 
 test('should produce correct delay when returning Date in OnSuccessNextRunEvaluator', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(1)
@@ -304,7 +304,7 @@ test('should produce correct delay when returning Date in OnSuccessNextRunEvalua
 })
 
 test('should attempt the specified number of times on error', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -370,7 +370,7 @@ test('should pass correct arguments to OnErrorNextRunEvaluator', async t => {
 })
 
 test('should produce correct delay when returning number in OnErrorNextRunEvaluator', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(1)
@@ -393,7 +393,7 @@ test('should produce correct delay when returning number in OnErrorNextRunEvalua
 })
 
 test('should produce correct delay when returning Date in OnErrorNextRunEvaluator', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(1)
@@ -474,8 +474,45 @@ test('should reset metadata argument passed to OnErrorNextRunEvaluator after a s
   scheduler.cancelNextRun()
 })
 
-test('should return correct scheduled flag', async t => {
-  await tryUntilSuccess(t, async tt => {
+test.todo('can return correct `successNextRunOptions` property')
+
+test.todo('can change `successNextRunOptions` property')
+// test('can change next run time options', async t => {
+//   let runCount = 0
+//   const scheduler = new SingleInstanceTaskScheduler(async () => {
+//     await delay(1)
+//     runCount++
+//   }, () => ({
+//     startDelayOrTime: 100,
+//     isRetry: false
+//   }))
+//   t.is(runCount, 0)
+//   scheduler.run()
+//   t.is(runCount, 0)
+//   await delay(50)
+//   t.is(runCount, 1)
+//   await delay(100)
+//   t.is(runCount, 2)
+//   t.false(scheduler.running)
+//   scheduler.setNextRunTimeOptions(() => ({
+//     startDelayOrTime: 200,
+//     isRetry: false
+//   }))
+//   await delay(100)
+//   t.is(runCount, 3)
+//   await delay(100)
+//   t.is(runCount, 3)
+//   await delay(100)
+//   t.is(runCount, 4)
+//   scheduler.cancelNextRun()
+// })
+
+test.todo('can return correct `errorNextRunOptions` properties')
+
+test.todo('can change `errorNextRunOptions` property')
+
+test('should return correct `scheduled` property', async t => {
+  await tryUntilPass(t, async tt => {
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(50)
     }, {
@@ -508,8 +545,12 @@ test('should return correct scheduled flag', async t => {
   }, 3)
 })
 
+test.todo('should return correct `nextRunTime` property')
+
+test.todo('should return correct `running` property')
+
 test('can schedule task to run as specified start time', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -525,7 +566,7 @@ test('can schedule task to run as specified start time', async t => {
 })
 
 test('can cancel next run when task is not running', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(() => {
       runCount++
@@ -552,7 +593,7 @@ test('can cancel next run when task is not running', async t => {
 })
 
 test('can cancel next run when task is running and task will return succes', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -577,7 +618,7 @@ test('can cancel next run when task is running and task will return succes', asy
 })
 
 test('can cancel next run when task is running and task will return error', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     const scheduler = new SingleInstanceTaskScheduler(async () => {
       await delay(100)
@@ -622,8 +663,10 @@ test('can run task and wait until finished', async t => {
   t.is(rtv, 'Finished')
 })
 
+test.todo('run task after scheduled will update schedule based on run result')
+
 test('should not run multiple tasks concurrently', async t => {
-  await tryUntilSuccess(t, async tt => {
+  await tryUntilPass(t, async tt => {
     let runCount = 0
     let isRunning = false
     const scheduler = new SingleInstanceTaskScheduler(async () => {
@@ -665,33 +708,3 @@ test('should not run multiple tasks concurrently', async t => {
     scheduler.cancelNextRun()
   }, 3)
 })
-
-// test('can change next run time options', async t => {
-//   let runCount = 0
-//   const scheduler = new SingleInstanceTaskScheduler(async () => {
-//     await delay(1)
-//     runCount++
-//   }, () => ({
-//     startDelayOrTime: 100,
-//     isRetry: false
-//   }))
-//   t.is(runCount, 0)
-//   scheduler.run()
-//   t.is(runCount, 0)
-//   await delay(50)
-//   t.is(runCount, 1)
-//   await delay(100)
-//   t.is(runCount, 2)
-//   t.false(scheduler.running)
-//   scheduler.setNextRunTimeOptions(() => ({
-//     startDelayOrTime: 200,
-//     isRetry: false
-//   }))
-//   await delay(100)
-//   t.is(runCount, 3)
-//   await delay(100)
-//   t.is(runCount, 3)
-//   await delay(100)
-//   t.is(runCount, 4)
-//   scheduler.cancelNextRun()
-// })
