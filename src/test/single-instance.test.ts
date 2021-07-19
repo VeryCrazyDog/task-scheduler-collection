@@ -1,7 +1,13 @@
 import test, { EitherMacro, ExecutionContext, TryResult } from 'ava'
 import { delay } from 'native-promise-util'
 
-import { SingleInstanceTaskScheduler } from '../single-instance'
+import {
+  OnErrorNextRunEvaluator,
+  OnErrorNextRunOptions,
+  OnSuccessNextRunEvaluator,
+  OnSuccessNextRunOptions,
+  SingleInstanceTaskScheduler
+} from '../single-instance'
 
 // Private functions
 function buildDeferred (): {
@@ -474,42 +480,103 @@ test('should reset metadata argument passed to OnErrorNextRunEvaluator after a s
   scheduler.cancelNextRun()
 })
 
-test.todo('can return correct `successNextRunOptions` property')
+test('can return correct `successNextRunOptions` property', t => {
+  const scheduler1 = new SingleInstanceTaskScheduler(() => {}, {
+    onSuccess: null
+  })
+  t.is(scheduler1.successNextRunOptions, null)
 
-test.todo('can change `successNextRunOptions` property')
-// test('can change next run time options', async t => {
-//   let runCount = 0
-//   const scheduler = new SingleInstanceTaskScheduler(async () => {
-//     await delay(1)
-//     runCount++
-//   }, () => ({
-//     startDelayOrTime: 100,
-//     isRetry: false
-//   }))
-//   t.is(runCount, 0)
-//   scheduler.run()
-//   t.is(runCount, 0)
-//   await delay(50)
-//   t.is(runCount, 1)
-//   await delay(100)
-//   t.is(runCount, 2)
-//   t.false(scheduler.running)
-//   scheduler.setNextRunTimeOptions(() => ({
-//     startDelayOrTime: 200,
-//     isRetry: false
-//   }))
-//   await delay(100)
-//   t.is(runCount, 3)
-//   await delay(100)
-//   t.is(runCount, 3)
-//   await delay(100)
-//   t.is(runCount, 4)
-//   scheduler.cancelNextRun()
-// })
+  const options: OnSuccessNextRunOptions = {
+    type: 'FIXED_INTERVAL',
+    interval: 5 * 60 * 1000,
+    onPastTime: 'RUN_IMMEDIATELY'
+  }
+  const scheduler2 = new SingleInstanceTaskScheduler(() => {}, {
+    onSuccess: options
+  })
+  t.deepEqual(scheduler2.successNextRunOptions, options)
 
-test.todo('can return correct `errorNextRunOptions` properties')
+  const fn: OnSuccessNextRunEvaluator = () => null
+  const scheduler3 = new SingleInstanceTaskScheduler(() => {}, {
+    onSuccess: fn
+  })
+  t.is(scheduler3.successNextRunOptions, fn)
+})
 
-test.todo('can change `errorNextRunOptions` property')
+test('can change `successNextRunOptions` property and effective', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    runCount++
+  }, {
+    onSuccess: () => 100
+  })
+  t.is(runCount, 0)
+  scheduler.run().catch(() => {})
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  t.false(scheduler.running)
+  scheduler.successNextRunOptions = () => 200
+  await delay(100)
+  t.is(runCount, 3)
+  await delay(100)
+  t.is(runCount, 3)
+  await delay(100)
+  t.is(runCount, 4)
+  scheduler.cancelNextRun()
+})
+
+test('can return correct `errorNextRunOptions` property', t => {
+  const scheduler1 = new SingleInstanceTaskScheduler(() => {}, {
+    onError: null
+  })
+  t.is(scheduler1.errorNextRunOptions, null)
+
+  const options: OnErrorNextRunOptions = {
+    delay: 60 * 1000,
+    attempt: Infinity
+  }
+  const scheduler2 = new SingleInstanceTaskScheduler(() => {}, {
+    onError: options
+  })
+  t.deepEqual(scheduler2.errorNextRunOptions, options)
+
+  const fn: OnErrorNextRunEvaluator = () => null
+  const scheduler3 = new SingleInstanceTaskScheduler(() => {}, {
+    onError: fn
+  })
+  t.is(scheduler3.errorNextRunOptions, fn)
+})
+
+test('can change `errorNextRunOptions` property', async t => {
+  let runCount = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    runCount++
+    throw new Error('Mock error')
+  }, {
+    onError: () => 100
+  })
+  t.is(runCount, 0)
+  scheduler.run().catch(() => {})
+  t.is(runCount, 0)
+  await delay(50)
+  t.is(runCount, 1)
+  await delay(100)
+  t.is(runCount, 2)
+  t.false(scheduler.running)
+  scheduler.errorNextRunOptions = () => 200
+  await delay(100)
+  t.is(runCount, 3)
+  await delay(100)
+  t.is(runCount, 3)
+  await delay(100)
+  t.is(runCount, 4)
+  scheduler.cancelNextRun()
+})
 
 test('should return correct `scheduled` property', async t => {
   await tryUntilPass(t, async tt => {
