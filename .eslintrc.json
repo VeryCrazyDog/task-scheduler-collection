@@ -7,6 +7,7 @@
 	"rules": {
 		"@typescript-eslint/no-shadow": [ "error", { "builtinGlobals": true } ],
 		"complexity": "error",
+		"import/order": "error",
 		"max-depth": "error",
 		"max-len": [ "error", { "code": 120, "ignoreUrls": true } ],
 		"no-console": "error",
