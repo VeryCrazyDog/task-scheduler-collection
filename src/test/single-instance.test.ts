@@ -345,14 +345,14 @@ test('should pass correct arguments to OnErrorNextRunEvaluator', async t => {
   let firstAttemptEndTimestamp: number | null
   const deferred = buildDeferred()
   const scheduler = new SingleInstanceTaskScheduler(async () => {
-    await delay(100)
+    await delay(1000)
     throw err
   }, {
     onError: (caughtValue, meta, context) => {
       nextRunEvaluatorRunCount++
       t.is(caughtValue, err)
       t.is(meta.attemptNumber, nextRunEvaluatorRunCount)
-      t.true(meta.endTime.getTime() - meta.startTime.getTime() >= 100)
+      t.true(meta.endTime.getTime() - meta.startTime.getTime() >= (1000 - 100))
       if (nextRunEvaluatorRunCount === 1) {
         firstAttemptStartTimestamp = meta.firstAttemptStartTime.getTime()
         firstAttemptEndTimestamp = meta.firstAttemptEndTime.getTime()
