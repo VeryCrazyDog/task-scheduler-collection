@@ -612,7 +612,48 @@ test('should return correct `scheduled` property', async t => {
   }, 3)
 })
 
-test.todo('should return correct `nextRunTime` property')
+test('should return correct `nextRunTime` property after scheduled', t => {
+  const scheduler = new SingleInstanceTaskScheduler(() => {})
+  const runTime = new Date(Date.now() + 5 * 60 * 1000)
+  scheduler.schedule(runTime)
+  t.is(scheduler.nextRunTime?.getTime(), runTime.getTime())
+
+  const delayMs = 10 * 60 * 1000
+  scheduler.schedule(delayMs)
+  t.true(Math.abs(scheduler.nextRunTime!.getTime() - (Date.now() + delayMs)) < 1000)
+  scheduler.cancelNextRun()
+})
+
+test('should return correct `nextRunTime` property after success run', async t => {
+  const interval = 60 * 1000
+  const scheduler = new SingleInstanceTaskScheduler(async () => await delay(1), {
+    onSuccess: {
+      type: 'FIXED_INTERVAL',
+      interval
+    }
+  })
+  const runTime = new Date()
+  scheduler.schedule(runTime)
+  await delay(100)
+  t.is(scheduler.nextRunTime?.getTime(), runTime.getTime() + interval)
+  scheduler.cancelNextRun()
+})
+
+test('should return correct `nextRunTime` property after run error', async t => {
+  const delayMs = 5 * 60 * 1000
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+    throw new Error('Mock error')
+  }, {
+    onError: {
+      delay: delayMs
+    }
+  })
+  const runTime = new Date()
+  scheduler.schedule(runTime)
+  await delay(100)
+  t.true(Math.abs(scheduler.nextRunTime!.getTime() - (runTime.getTime() + delayMs)) < 1000)
+})
 
 test('should return correct `running` property when scheduled', async t => {
   await tryUntilPass(t, async tt => {
