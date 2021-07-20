@@ -746,7 +746,7 @@ test('can run task immediately', async t => {
   t.is(runCount, 1)
 })
 
-test('can run task and wait until finished', async t => {
+test('can run task with correct return value and wait until finished', async t => {
   let runCount = 0
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     await delay(100)
