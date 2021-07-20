@@ -124,7 +124,7 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
   readonly #options: Required<SingleInstanceTaskSchedulerOptions<C, R>>
   readonly #context: C
   #nextRunData: null | NextRunData = null
-  #taskRunningPromise: Promise<R> | null = null
+  #taskRunningPromise: true | Promise<R> | null = null
 
   constructor (task: Task<C, R>, options?: SingleInstanceTaskSchedulerOptions<C, R>)
   constructor (task: Task<C, R>, options: SingleInstanceTaskSchedulerOptions<C, R> | undefined, initialContext: C)
@@ -330,6 +330,8 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
     }
 
     if (this.#taskRunningPromise !== null) { return }
+    // Ensure `taskRunningPromise` is not null, to produce correct `running` property
+    this.#taskRunningPromise = true
     this.#taskRunningPromise = (async () => {
       let taskResult: ExecutionResult
       const startTime = new Date()
@@ -354,6 +356,7 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
       return taskResult.returnValue
     })()
 
+    // Note: `finally()` is not executed immediately
     this.#taskRunningPromise.finally(() => {
       this.#taskRunningPromise = null
       // Avoid unhandled rejection by catching
@@ -379,7 +382,9 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
       attemptNumber: prevAttemptNumber ?? 1
     }
     this.#runTask()
-    if (this.#taskRunningPromise === null) { throw new AssertionError('Expect #taskRunningPromise is not null') }
+    if (!(this.#taskRunningPromise instanceof Promise)) {
+      throw new AssertionError('Expect #taskRunningPromise is a Promise')
+    }
     return this.#taskRunningPromise
   }
 }

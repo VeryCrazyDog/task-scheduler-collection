@@ -614,7 +614,35 @@ test('should return correct `scheduled` property', async t => {
 
 test.todo('should return correct `nextRunTime` property')
 
-test.todo('should return correct `running` property')
+test('should return correct `running` property when scheduled', async t => {
+  await tryUntilPass(t, async tt => {
+    const scheduler = new SingleInstanceTaskScheduler(async () => {
+      tt.true(scheduler.running)
+      await delay(500)
+      tt.true(scheduler.running)
+    })
+    tt.false(scheduler.running)
+    scheduler.schedule(100)
+    tt.false(scheduler.running)
+    await delay(1)
+    tt.false(scheduler.running)
+    await delay(599)
+    tt.false(scheduler.running)
+  }, 3)
+})
+
+test('should return correct `running` property when run', async t => {
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    t.true(scheduler.running)
+    await delay(500)
+    t.true(scheduler.running)
+  })
+  t.false(scheduler.running)
+  const runningPromise = scheduler.run()
+  t.true(scheduler.running)
+  await runningPromise
+  t.false(scheduler.running)
+})
 
 test('can schedule task to run as specified start time', async t => {
   await tryUntilPass(t, async tt => {
@@ -730,7 +758,18 @@ test('can run task and wait until finished', async t => {
   t.is(rtv, 'Finished')
 })
 
-test.todo('run task after scheduled will update schedule based on run result')
+test('run task after scheduled will update schedule based on run result', async t => {
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    await delay(1)
+  }, {
+    onSuccess: null
+  })
+  scheduler.schedule(10 * 1000)
+  await delay(1)
+  t.not(scheduler.nextRunTime, null)
+  await scheduler.run()
+  t.is(scheduler.nextRunTime, null)
+})
 
 test('should not run multiple tasks concurrently', async t => {
   await tryUntilPass(t, async tt => {
