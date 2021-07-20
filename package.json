@@ -1,6 +1,6 @@
 {
 	"name": "task-scheduler-collection",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "A collection of different types of task scheduler",
 	"engines": {
 		"node": ">= 12.x"

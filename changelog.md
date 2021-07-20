@@ -6,6 +6,10 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.0.1] - 2021-07-21
+### Fixed
+- Fix broken package by repacking and republish.
+
 ## [1.0.0] - 2021-07-20
 ### Changed
 - `SingleInstanceTaskScheduler` is rewrote with stability index *2 - Stable*.
@@ -45,7 +49,8 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 
 
-[Unreleased]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.3.0...1.0.0
 [0.3.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.1.0...0.2.0
