@@ -155,6 +155,10 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
     this.#options.onError = value
   }
 
+  get context (): C {
+    return this.#context
+  }
+
   /**
    * Whether a next run is scheduled.
    */
