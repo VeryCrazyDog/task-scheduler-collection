@@ -1,13 +1,14 @@
-import test, { EitherMacro, ExecutionContext, TryResult } from 'ava'
+import type { EitherMacro, ExecutionContext, TryResult } from 'ava'
+import test from 'ava'
 import { delay } from 'native-promise-util'
 
-import {
+import type {
   OnErrorNextRunEvaluator,
   OnErrorNextRunOptions,
   OnSuccessNextRunEvaluator,
-  OnSuccessNextRunOptions,
-  SingleInstanceTaskScheduler
+  OnSuccessNextRunOptions
 } from '../single-instance'
+import { SingleInstanceTaskScheduler } from '../single-instance'
 
 // Private functions
 function buildDeferred (): {

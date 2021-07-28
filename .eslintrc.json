@@ -5,15 +5,25 @@
 	"parserOptions": { "project": "tsconfig.json" },
 	"ignorePatterns": [ "/dist/" ],
 	"rules": {
+		// Rules to avoid potential bugs and unintended behavior
 		"@typescript-eslint/no-shadow": [ "error", { "builtinGlobals": true } ],
-		"complexity": "error",
-		"import/order": "error",
-		"max-depth": "error",
-		"max-len": [ "error", { "code": 120, "ignoreUrls": true } ],
+		"no-alert": "error",
 		"no-console": "error",
 		"no-param-reassign": "error",
 		"no-shadow": "off",
-		"no-var": "error"
+		"no-var": "error",
+		// Readability and maintainability rules
+		"complexity": "error",
+		"max-depth": "error",
+		"max-len": [ "error", { "code": 120, "ignoreUrls": true } ],
+		// Rules to disallow JavaScript obsoleted syntax and API
+		"prefer-rest-params": "error",
+		"prefer-spread": "error",
+		// Coding style rules, can be removed based on personal preference
+		"@typescript-eslint/consistent-type-imports": "error",
+		"import/no-default-export": "error",
+		"import/order": [ "error", { "newlines-between": "always" } ],
+		"sort-imports": [ "error", { "ignoreDeclarationSort": true } ]
 	},
 	"overrides": [
 		{
