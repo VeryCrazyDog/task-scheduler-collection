@@ -6,6 +6,10 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [1.1.0] - 2021-07-28
+### Added
+- Added read only property `SingleInstanceTaskScheduler.context`.
+
 ## [1.0.1] - 2021-07-21
 ### Fixed
 - Fix broken package by repacking and republish.
