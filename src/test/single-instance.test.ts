@@ -856,3 +856,20 @@ test('should not run multiple tasks concurrently', async t => {
     scheduler.cancelNextRun()
   }, 3)
 })
+
+test('always failing task will keep retry even after on-demand run is called', async t => {
+  let count = 0
+  const scheduler = new SingleInstanceTaskScheduler(async () => {
+    count++
+    await delay(1)
+    throw new Error('Mock error')
+  }, {
+    onError: () => 100
+  })
+  scheduler.run().catch(() => {})
+  await delay(1)
+  scheduler.run().catch(() => {})
+  await delay(2000)
+  t.true(count >= 10)
+  scheduler.cancelNextRun()
+})

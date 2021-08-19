@@ -189,7 +189,7 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
    * an absolute date time.
    */
   schedule (startDelayOrTime: number | Date): void {
-    const prevAttemptNumber = this.#nextRunData?.attemptNumber
+    const prevNextRunData = this.#nextRunData
     let startTime = startDelayOrTime
     if (typeof startTime === 'number') {
       startTime = new Date(Date.now() + startTime)
@@ -198,7 +198,8 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
     this.#nextRunData = {
       startTime,
       timer: setTimeout(this.#runTask.bind(this), startTime.getTime() - Date.now()),
-      attemptNumber: prevAttemptNumber ?? 1
+      attemptNumber: prevNextRunData?.attemptNumber ?? 1,
+      firstAttempt: prevNextRunData?.firstAttempt
     }
   }
 
@@ -378,12 +379,13 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
   // We intented to return Promise from non-async function
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   run (): Promise<R> {
-    const prevAttemptNumber = this.#nextRunData?.attemptNumber
+    const prevNextRunData = this.#nextRunData
     this.cancelNextRun()
     this.#nextRunData = {
       startTime: new Date(),
       timer: null,
-      attemptNumber: prevAttemptNumber ?? 1
+      attemptNumber: prevNextRunData?.attemptNumber ?? 1,
+      firstAttempt: prevNextRunData?.firstAttempt
     }
     this.#runTask()
     if (!(this.#taskRunningPromise instanceof Promise)) {
