@@ -857,7 +857,7 @@ test('should not run multiple tasks concurrently', async t => {
   }, 3)
 })
 
-test.failing('always failing task will keep retry even after on-demand run is called', async t => {
+test('always failing task will keep retry even after on-demand run is called', async t => {
   let count = 0
   const scheduler = new SingleInstanceTaskScheduler(async () => {
     count++
