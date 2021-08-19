@@ -5,9 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.1.1] - 2021-08-19
 ### Fixed
 - Fix no retry will be executed in `SingleInstanceTaskScheduler` when `schedule()` or
-  `run()` is called after retry.
+  `run()` is called after first retry.
 
 ## [1.1.0] - 2021-07-28
 ### Added
@@ -56,7 +58,9 @@ and this module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 
 
-[Unreleased]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.1.0...1.1.1
+[1.1.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.0.1...1.1.0
 [1.0.1]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.3.0...1.0.0
 [0.3.0]: https://github.com/VeryCrazyDog/task-scheduler-collection/compare/0.2.0...0.3.0
