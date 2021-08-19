@@ -190,6 +190,11 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
    */
   schedule (startDelayOrTime: number | Date): void {
     const prevNextRunData = this.#nextRunData
+    if (prevNextRunData !== null) {
+      if ((prevNextRunData.attemptNumber === 1) !== (prevNextRunData.firstAttempt === undefined)) {
+        throw new AssertionError('Expect firstAttempt is defined when attemptNumber is larger than 1')
+      }
+    }
     let startTime = startDelayOrTime
     if (typeof startTime === 'number') {
       startTime = new Date(Date.now() + startTime)
@@ -380,6 +385,11 @@ export class SingleInstanceTaskScheduler<C = unknown, R = unknown> {
   // eslint-disable-next-line @typescript-eslint/promise-function-async
   run (): Promise<R> {
     const prevNextRunData = this.#nextRunData
+    if (prevNextRunData !== null) {
+      if ((prevNextRunData.attemptNumber === 1) !== (prevNextRunData.firstAttempt === undefined)) {
+        throw new AssertionError('Expect firstAttempt is defined when attemptNumber is larger than 1')
+      }
+    }
     this.cancelNextRun()
     this.#nextRunData = {
       startTime: new Date(),
